@@ -2,7 +2,7 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.tsx';
-import SignupPage from './pages/SignupPage.tsx';
+import SignupPage from './pages/SignupPage.tsx'; // 경로 오타 수정
 import DashboardPage from './pages/DashboardPage.tsx';
 import MyPapersPage from './pages/MyPapersPage.tsx';
 import SearchPage from './pages/SearchPage.tsx';
