@@ -70,25 +70,69 @@ const SearchPage = () => {
     }
   };
 
-  const handleAddPaper = async (paper: ArxivPaper) => {
+/* BE API를 통해 논문을 추가하는 함수 */
+//   const handleAddPaper = async (paper: ArxivPaper) => {
+//     try {
+//         // Postman에 정의된 `/api/papers/register-from-url` API를 호출합니다.
+//         // 백엔드는 이 URL로부터 PDF를 다운로드하고 메타데이터를 추출해야 합니다.
+//         const response = await axiosInstance.post('/api/papers/register-from-url', {
+//             url: paper.pdfLink, // PDF 링크를 전달
+//             sourceId: paper.id, // arXiv ID를 sourceId로 사용
+//             // title, authors, summary 등 추가 정보를 함께 보내 백엔드 부담을 줄일 수도 있습니다.
+//             title: paper.title,
+//             authors: paper.authors.join(', '),
+//             summary: paper.summary,
+//         });
+//         alert(`'${paper.title}' 논문을 내 서재에 추가했습니다.`);
+//         console.log('Paper added successfully:', response.data);
+//     } catch (error) {
+//         console.error('Failed to add paper:', error);
+//         alert('논문 추가에 실패했습니다.');
+//     }
+//   };
+
+/* FE 에서 PDF를 직접 다운로드 받아 FormData로 백엔드에 전송하는 함수 */
+ const handleAddPaper = async (paper: ArxivPaper) => {
+    // 버튼을 누르면 잠시 '추가 중...'으로 상태 변경
+    const addButton = document.getElementById(`add-btn-${paper.id}`);
+    if (addButton) addButton.textContent = 'Adding...';
+
     try {
-        // Postman에 정의된 `/api/papers/register-from-url` API를 호출합니다.
-        // 백엔드는 이 URL로부터 PDF를 다운로드하고 메타데이터를 추출해야 합니다.
-        const response = await axiosInstance.post('/api/papers/register-from-url', {
-            url: paper.pdfLink, // PDF 링크를 전달
-            sourceId: paper.id, // arXiv ID를 sourceId로 사용
-            // title, authors, summary 등 추가 정보를 함께 보내 백엔드 부담을 줄일 수도 있습니다.
-            title: paper.title,
-            authors: paper.authors.join(', '),
-            summary: paper.summary,
-        });
-        alert(`'${paper.title}' 논문을 내 서재에 추가했습니다.`);
-        console.log('Paper added successfully:', response.data);
+      // 1. 프론트엔드에서 PDF URL을 fetch로 다운로드
+      const response = await fetch(paper.pdfLink);
+      if (!response.ok) {
+        throw new Error('PDF download failed');
+      }
+      const pdfBlob = await response.blob(); // 2. 다운로드한 데이터를 Blob 형태로 변환
+
+      // 3. Blob을 실제 File 객체로 생성
+      const pdfFile = new File([pdfBlob], `${paper.title.replace(/ /g, '_')}.pdf`, { type: 'application/pdf' });
+
+      // 4. FormData 객체 생성 및 데이터 추가
+      const formData = new FormData();
+      formData.append('file', pdfFile); // "file"이라는 키로 PDF 파일 추가
+      formData.append('sourceId', paper.id); // "sourceId" 추가
+      formData.append('uploaderId', 'user-123'); // 임시 uploaderId 추가
+
+      // 5. FormData를 백엔드로 전송
+      await axiosInstance.post('/api/papers/register-from-url', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data', // FormData를 보낼 때는 이 헤더가 필수입니다.
+        },
+      });
+
+      alert(`'${paper.title}' 논문을 내 서재에 추가했습니다.`);
+
     } catch (error) {
-        console.error('Failed to add paper:', error);
-        alert('논문 추가에 실패했습니다.');
+      console.error('Failed to add paper:', error);
+      // CORS 오류가 발생하면 여기서 잡힙니다.
+      alert('논문 추가에 실패했습니다. (CORS 오류일 가능성이 높습니다)');
+    } finally {
+      // 버튼 텍스트 원상복구
+      if (addButton) addButton.textContent = 'Add to My Papers';
     }
   };
+
 
   return (
     <div className="flex-1 p-6">
