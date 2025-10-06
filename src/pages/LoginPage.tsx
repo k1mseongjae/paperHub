@@ -15,8 +15,24 @@ const LoginPage = () => {
     e.preventDefault();
     try {
       const response = await axiosInstance.post('/api/auth/login', { email, password });
-      login(response.data.token);
-      navigate('/');
+
+      const authHeader = response.headers['authorization'];
+      let token = null;
+
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        // 'Bearer ' 부분을 제외한 실제 토큰 값만 추출합니다.
+        token = authHeader.substring(7);
+      }
+
+      console.log('Extracted Token:', token); // 토큰이 잘 추출됐는지 확인
+
+      if (token) {
+        login(token); // 추출한 토큰으로 로그인 상태를 업데이트합니다.
+        navigate('/dashboard');
+      } else {
+        throw new Error('토큰이 응답에 포함되지 않았습니다.');
+      }
+
     } catch (error) {
       console.error('Login failed:', error);
       alert('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
