@@ -11,23 +11,29 @@ const LoginPage = () => {
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const response = await axiosInstance.post('/api/auth/login', { email, password });
 
-      const authHeader = response.headers['authorization'];
       let token = null;
 
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        // 'Bearer ' 부분을 제외한 실제 토큰 값만 추출합니다.
-        token = authHeader.substring(7);
+      // 1. 응답 본문(body)에 토큰이 있는지 먼저 확인
+      if (response.data && response.data.token) {
+        token = response.data.token;
+      } 
+      // 2. 본문에 토큰이 없으면, 응답 헤더(header)를 확인
+      else {
+        const authHeader = response.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7); // 'Bearer ' 부분 제외
+        }
       }
 
-      console.log('Extracted Token:', token); // 토큰이 잘 추출됐는지 확인
+      console.log('Extracted Token:', token); // 토큰 추출 확인용
 
       if (token) {
-        login(token); // 추출한 토큰으로 로그인 상태를 업데이트합니다.
+        login(token);
         navigate('/dashboard');
       } else {
         throw new Error('토큰이 응답에 포함되지 않았습니다.');

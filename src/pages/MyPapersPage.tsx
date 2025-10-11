@@ -21,23 +21,24 @@ const MyPapersPage = () => {
 
   // useEffect를 사용해 컴포넌트가 처음 렌더링될 때 API를 호출합니다.
   useEffect(() => {
-    const fetchPapers = async () => {
-      try {
-        setIsLoading(true);
-        // 백엔드에 저장된 모든 논문 목록을 가져오는 API를 호출합니다.
-        const response = await axiosInstance.get('/api/papers');
-        setPapers(response.data); // 받아온 데이터로 상태를 업데이트합니다.
-        setError(null);
-      } catch (err) {
-        console.error("Failed to fetch papers:", err);
-        setError("논문 목록을 불러오는 데 실패했습니다.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchPapers = async () => {
+    try {
+      setIsLoading(true);
+      // 수정된 부분: 'to-read' 상태의 논문 목록을 가져옵니다.
+      const response = await axiosInstance.get('/api/collections/to-read');
+      // 백엔드 응답 구조에 맞게 데이터 파싱이 필요할 수 있습니다.
+      // 예를 들어, response.data.data.content 와 같이 접근해야 할 수 있습니다.
+      setPapers(response.data.data.content); 
+      setError(null);
+    } catch (err) {
+      // ... (기존 코드)
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchPapers();
-  }, []); // 빈 배열을 전달하여 이 효과가 한 번만 실행되도록 합니다.
+  fetchPapers();
+}, []);
 
   // 로딩 중일 때 보여줄 화면
   if (isLoading) {

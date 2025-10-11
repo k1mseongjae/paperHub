@@ -111,15 +111,13 @@ const SearchPage = () => {
       // 4. FormData 객체 생성 및 데이터 추가
       const formData = new FormData();
       formData.append('file', pdfFile); // "file"이라는 키로 PDF 파일 추가
-      formData.append('sourceId', paper.id); // "sourceId" 추가
-      formData.append('uploaderId', 'user-123'); // 임시 uploaderId 추가
 
       // 5. FormData를 백엔드로 전송
       await axiosInstance.post('/api/papers/register-from-url', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data', // FormData를 보낼 때는 이 헤더가 필수입니다.
-        },
-      });
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
 
       alert(`'${paper.title}' 논문을 내 서재에 추가했습니다.`);
 
