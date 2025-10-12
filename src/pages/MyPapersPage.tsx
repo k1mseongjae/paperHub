@@ -37,7 +37,13 @@ interface PaperInfoDetail {
   publishedDate?: string;   // ISO date
 }
 
-const MyPapersPage = () => {
+type MyPapersPageVariant = 'grid' | 'list';
+
+interface MyPapersPageProps {
+  variant?: MyPapersPageVariant;
+}
+
+const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [papers, setPapers] = useState<PaperListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -273,8 +279,23 @@ const MyPapersPage = () => {
     return <div className="p-6 text-red-500">{error}</div>;
   }
 
+  const containerClass =
+    variant === 'list'
+      ? 'flex flex-col gap-4'
+      : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+
+  const cardClass =
+    variant === 'list'
+      ? 'w-full p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col md:flex-row md:items-start md:justify-between gap-4'
+      : 'p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow';
+
+  const cardMetaWrapperClass =
+    variant === 'list'
+      ? 'flex-1'
+      : '';
+
   return (
-    <div className="flex-1 p-6">
+    <div className={`flex-1 ${variant === 'list' ? '' : 'p-6'}`}>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-800">My Papers</h2>
         <div>
@@ -286,7 +307,7 @@ const MyPapersPage = () => {
       </div>
 
       {/* Paper List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className={containerClass}>
         {papers.length > 0 ? (
           papers.map((paper) => {
             const detailError = detailErrors[paper.id];
@@ -302,38 +323,37 @@ const MyPapersPage = () => {
             const arxivId = paper.arxivId;
 
             return (
-              <div
-                key={paper.id}
-                className="p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow"
-              >
-                <Link to={`/paper/${paper.paperId}`} className="hover:underline">
-                  <h3 className="text-lg font-bold text-gray-800 line-clamp-2">{title}</h3>
-                </Link>
-                {authorsLabel && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    {authorsLabel}
-                    {publishedYear ? ` - ${publishedYear}` : ''}
-                  </p>
-                )}
-                {abstractText ? (
-                  <p className="text-sm text-gray-500 mt-3 line-clamp-3">{abstractText}</p>
-                ) : detailError ? (
-                  <p className="text-xs text-red-500 mt-3">{detailError}</p>
-                ) : !loadedDetailIdsRef.current.has(paper.id) ? (
-                  <p className="text-xs text-gray-400 mt-3 italic">
-                    {isFetchingDetails ? '메타데이터 불러오는 중...' : '초록 정보가 없습니다.'}
-                  </p>
-                ) : null}
-                <div className="mt-4">
-                  {categories.slice(0, 3).map((tag: string) => (
-                    <span key={tag} className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
+              <div key={paper.id} className={cardClass}>
+                <div className={cardMetaWrapperClass}>
+                  <Link to={`/paper/${paper.paperId}?collectionId=${paper.id}`} className="hover:underline">
+                    <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title}</h3>
+                  </Link>
+                  {authorsLabel && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {authorsLabel}
+                      {publishedYear ? ` - ${publishedYear}` : ''}
+                    </p>
+                  )}
+                  {abstractText ? (
+                    <p className={`text-sm text-gray-500 mt-3 ${variant === 'list' ? 'line-clamp-2 md:line-clamp-none' : 'line-clamp-3'}`}>{abstractText}</p>
+                  ) : detailError ? (
+                    <p className="text-xs text-red-500 mt-3">{detailError}</p>
+                  ) : !loadedDetailIdsRef.current.has(paper.id) ? (
+                    <p className="text-xs text-gray-400 mt-3 italic">
+                      {isFetchingDetails ? '메타데이터 불러오는 중...' : '초록 정보가 없습니다.'}
+                    </p>
+                  ) : null}
+                  {arxivId && (
+                    <p className="text-xs text-gray-400 mt-2">arXiv: {arxivId}</p>
+                  )}
+                </div>
+                <div className={`mt-4 ${variant === 'list' ? 'md:mt-0 md:w-48 flex-shrink-0' : ''}`}>
+                  {categories.slice(0, 5).map((tag: string) => (
+                    <span key={tag} className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full mb-2">
                       {tag}
                     </span>
                   ))}
                 </div>
-                {arxivId && (
-                  <p className="text-xs text-gray-400 mt-2">arXiv: {arxivId}</p>
-                )}
               </div>
             );
           })

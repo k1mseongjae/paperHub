@@ -23,11 +23,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
         <nav className="flex flex-col space-y-2">
           <NavLink to="/dashboard" end className={({ isActive }) => isActive ? activeLinkStyle : linkStyle}>Home</NavLink>
-          <NavLink to="/my-papers" className={({ isActive }) => isActive ? activeLinkStyle : linkStyle}>My Papers</NavLink>
           <NavLink to="/search" className={({ isActive }) => isActive ? activeLinkStyle : linkStyle}>Search</NavLink>
-          <NavLink to="/clustering" className={({ isActive }) => isActive ? activeLinkStyle : linkStyle}>Clustering View</NavLink>
-          {/* This is a sample link to a specific paper's notes */}
-          <NavLink to="/paper/1" className={({ isActive }) => isActive ? activeLinkStyle : linkStyle}>Paper Notes</NavLink>
         </nav>
         <div className="mt-auto p-4">
            <button onClick={handleLogout} className="w-full text-left px-6 py-3 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors">

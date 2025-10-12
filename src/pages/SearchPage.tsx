@@ -93,41 +93,54 @@ const SearchPage = () => {
 
 /* FE 에서 PDF를 직접 다운로드 받아 FormData로 백엔드에 전송하는 함수 */
  const handleAddPaper = async (paper: ArxivPaper) => {
-    // 버튼을 누르면 잠시 '추가 중...'으로 상태 변경
-    const addButton = document.getElementById(`add-btn-${paper.id}`);
-    if (addButton) addButton.textContent = 'Adding...';
+    const buttonId = `add-btn-${paper.id}`;
+    const addButton = document.getElementById(buttonId) as HTMLButtonElement | null;
+    if (addButton) {
+      addButton.textContent = 'Adding...';
+      addButton.disabled = true;
+    }
 
     try {
-      // 1. 프론트엔드에서 PDF URL을 fetch로 다운로드
+      // 1. arXiv PDF 다운로드
       const response = await fetch(paper.pdfLink);
       if (!response.ok) {
         throw new Error('PDF download failed');
       }
-      const pdfBlob = await response.blob(); // 2. 다운로드한 데이터를 Blob 형태로 변환
+      const pdfBlob = await response.blob();
 
-      // 3. Blob을 실제 File 객체로 생성
-      const pdfFile = new File([pdfBlob], `${paper.title.replace(/ /g, '_')}.pdf`, { type: 'application/pdf' });
+      // 2. Blob → File 변환
+      const sanitizedTitle = paper.title.replace(/[\s\/\\]+/g, '_').slice(0, 50) || 'paper';
+      const pdfFile = new File([pdfBlob], `${sanitizedTitle}.pdf`, { type: 'application/pdf' });
 
-      // 4. FormData 객체 생성 및 데이터 추가
+      // 3. 파일 업로드 (Paper 등록)
       const formData = new FormData();
-      formData.append('file', pdfFile); // "file"이라는 키로 PDF 파일 추가
+      formData.append('file', pdfFile);
 
-      // 5. FormData를 백엔드로 전송
-      await axiosInstance.post('/api/papers/register-from-url', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const paperId = uploadResp?.data?.data?.paperId;
+      if (!paperId) {
+        throw new Error('paperId not returned from upload response');
+      }
+
+      // 4. 내 서재 컬렉션(to-read)에 추가
+      await axiosInstance.post('/api/collections/to-read', { paperId });
 
       alert(`'${paper.title}' 논문을 내 서재에 추가했습니다.`);
-
     } catch (error) {
       console.error('Failed to add paper:', error);
-      // CORS 오류가 발생하면 여기서 잡힙니다.
-      alert('논문 추가에 실패했습니다. (CORS 오류일 가능성이 높습니다)');
+      const errObj = error as { response?: { data?: { error?: { message?: string } } } ; message?: string } | undefined;
+      const message = errObj?.response?.data?.error?.message || errObj?.message || '논문 추가에 실패했습니다.';
+      alert(message);
     } finally {
-      // 버튼 텍스트 원상복구
-      if (addButton) addButton.textContent = 'Add to My Papers';
+      if (addButton) {
+        addButton.textContent = 'Add to My Papers';
+        addButton.disabled = false;
+      }
     }
   };
 
@@ -169,7 +182,8 @@ const SearchPage = () => {
               <p className="text-xs text-gray-500 mt-2 line-clamp-2">{paper.summary}</p>
               <div className="mt-3">
                 <a href={paper.pdfLink} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline">View PDF</a>
-                <button 
+                <button
+                  id={`add-btn-${paper.id}`}
                   onClick={() => handleAddPaper(paper)}
                   className="ml-4 px-3 py-1 text-sm font-semibold text-white bg-green-500 rounded-md hover:bg-green-600"
                 >
