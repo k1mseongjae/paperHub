@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.tsx';
 import SignupPage from './pages/SignupPage.tsx'; 
 import DashboardPage from './pages/DashboardPage.tsx';
@@ -10,6 +10,16 @@ import WelcomePage from './pages/WelcomePage.tsx';
 import AuthGuard from './components/AuthGuard.tsx';
 import MainLayout from './components/MainLayout.tsx';
 import { useAuthStore } from './state/authStore.ts';
+import FavoritesPage from './pages/FavoritesPage.tsx';
+import CategoryPapersPage from './pages/CategoryPapersPage.tsx';
+
+const ProtectedLayout = () => (
+  <AuthGuard>
+    <MainLayout>
+      <Outlet />
+    </MainLayout>
+  </AuthGuard>
+);
 
 function App() {
   const isAuthenticated = useAuthStore((state) => !!state.token);
@@ -28,26 +38,15 @@ function App() {
       />
 
       {/* 3. Protected Routes: 로그인해야만 접근 가능한 페이지들 */}
-      <Route 
-        path="/dashboard" 
-        element={ <AuthGuard><MainLayout><DashboardPage /></MainLayout></AuthGuard> } 
-      />
-      <Route 
-        path="/my-papers" 
-        element={ <AuthGuard><MainLayout><MyPapersPage /></MainLayout></AuthGuard> } 
-      />
-      <Route 
-        path="/search" 
-        element={ <AuthGuard><MainLayout><SearchPage /></MainLayout></AuthGuard> } 
-      />
-      <Route 
-        path="/clustering" 
-        element={ <AuthGuard><MainLayout><ClusteringPage /></MainLayout></AuthGuard> } 
-      />
-      <Route 
-        path="/paper/:paperId" 
-        element={ <AuthGuard><MainLayout><NoteViewerPage /></MainLayout></AuthGuard> } 
-      />
+      <Route element={<ProtectedLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/collections" element={<MyPapersPage />} />
+        <Route path="/favorites" element={<FavoritesPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/clustering" element={<ClusteringPage />} />
+        <Route path="/category/:code" element={<CategoryPapersPage />} />
+        <Route path="/paper/:paperId" element={<NoteViewerPage />} />
+      </Route>
 
       {/* 4. Fallback: 정의되지 않은 주소로 접근 시 루트 경로로 보냄 */}
       <Route path="*" element={<Navigate to="/" />} />

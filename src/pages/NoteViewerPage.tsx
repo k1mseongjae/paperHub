@@ -399,7 +399,7 @@ const NoteViewerPage: React.FC = () => {
     return (
       <div className="p-8">
         <h2 className="text-xl font-semibold text-gray-800">PDF를 찾을 수 없습니다.</h2>
-        <p className="mt-2 text-gray-600">이 논문은 아직 다운로드 경로가 설정되지 않았습니다. My Papers에서 다시 열어보거나, 백엔드에 PDF URL을 확인해주세요.</p>
+        <p className="mt-2 text-gray-600">논문 불러오기 오류.</p>
       </div>
     );
   }

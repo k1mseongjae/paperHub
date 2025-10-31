@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance.ts';
 
 // 리스트 응답(CollectionPaperListResp)에 맞춘 타입
@@ -48,6 +48,26 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const loadedDetailIdsRef = useRef<Set<number>>(new Set());
+  const [searchParams] = useSearchParams();
+
+  const statusParam = (searchParams.get('status') || 'to-read').toLowerCase();
+  const statusSegment = useMemo(() => {
+    if (['to-read', 'in-progress', 'done'].includes(statusParam)) {
+      return statusParam as 'to-read' | 'in-progress' | 'done';
+    }
+    return 'to-read';
+  }, [statusParam]);
+
+  const statusLabel = useMemo(() => {
+    switch (statusSegment) {
+      case 'in-progress':
+        return '읽는 중';
+      case 'done':
+        return '읽기 완료';
+      default:
+        return '읽을 예정';
+    }
+  }, [statusSegment]);
 
   const toStoredJson = (value: unknown): string => {
     if (value === null || value === undefined) return '';
@@ -138,8 +158,12 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     const fetchPapers = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+        setPapers([]);
+        loadedDetailIdsRef.current = new Set();
+        setDetailErrors({});
         // 'to-read' 상태의 논문 목록을 가져옵니다. (업데이트된 컬렉션 API)
-        const response = await axiosInstance.get('/api/collections/to-read');
+        const response = await axiosInstance.get(`/api/collections/${statusSegment}`);
         // 백엔드 응답 구조에 맞게 데이터 파싱
         if (response.data.success) {
           console.debug('MyPapers list response', response.data.data);
@@ -157,7 +181,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     };
 
     fetchPapers();
-  }, []);
+  }, [statusSegment]);
 
   // 목록이 로딩된 후, 상세 메타데이터를 추가로 가져옵니다.
   useEffect(() => {
@@ -239,7 +263,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     return () => {
       cancelled = true;
     };
-  }, [papers, detailErrors]);
+  }, [papers, detailErrors, statusSegment]);
 
   const parseJsonSafely = (jsonString: string): string[] => {
     if (!jsonString) return [];
@@ -295,7 +319,10 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   return (
     <div className={`flex-1 ${variant === 'list' ? '' : 'p-6'}`}>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800">My Papers</h2>
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-800">My Papers</h2>
+          <p className="text-sm text-gray-500">{statusLabel}</p>
+        </div>
         <div>
           <select className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option>Sort by Date</option>
