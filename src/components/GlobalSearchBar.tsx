@@ -30,7 +30,7 @@ const GlobalSearchBar: FC = () => {
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="arXiv 논문을 검색하세요... (예: machine learning, computer vision)"
+          placeholder="arXiv 논문을 검색하세요..."
           className="w-full rounded-full border border-gray-200 bg-white px-5 py-3 text-sm text-gray-700 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
         />
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-xs text-gray-400">

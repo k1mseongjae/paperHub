@@ -32,14 +32,14 @@ const DashboardPage = () => {
       });
       console.log('Upload success:', response.data);
       alert('논문이 성공적으로 업로드되었습니다.');
-      setFile(null); // Reset file input after upload
+      setFile(null);
     } catch (error) {
       console.error('Upload failed:', error);
       alert('업로드에 실패했습니다.');
     }
   };
 
-  // MainLayout이 뼈대를 제공하므로, 여기서는 실제 콘텐츠만 return합니다.
+  // ui 전환
   const renderViewSwitcher = () => (
     <div className="inline-flex items-center overflow-hidden rounded-lg border border-indigo-100 bg-white shadow-sm">
       <button

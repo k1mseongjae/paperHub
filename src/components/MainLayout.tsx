@@ -33,6 +33,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   });
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // hover-driven sidebar
 
   useEffect(() => {
     fetchCollectionCounts();
@@ -186,20 +187,41 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <aside className="flex w-80 flex-col border-r border-gray-100 bg-white px-6 py-8 shadow-lg">
+      <aside
+        className={`flex flex-col border-r border-gray-100 bg-white py-8 shadow-lg overflow-hidden transition-[width] duration-200 ease-out ${
+          isSidebarOpen ? 'w-80 px-6' : 'w-16 px-2'
+        }`}
+        onMouseEnter={() => setSidebarOpen(true)}
+        onMouseLeave={() => setSidebarOpen(false)}
+        style={{ willChange: 'width' }}
+      >
         <div className="mb-8">
           <button
             type="button"
             onClick={() => navigate('/dashboard')}
-            className="text-left text-3xl font-bold text-indigo-600"
+            className="text-left font-bold text-indigo-600 transition-opacity duration-200"
           >
-            PaperHub
+            {isSidebarOpen ? (
+              <span className={`text-3xl transition-all duration-200 whitespace-nowrap`}>
+                PaperHub
+              </span>
+            ) : (
+              <span
+                aria-label="PaperHub"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-600 text-xl leading-none"
+                title="PaperHub"
+              >
+                📚
+              </span>
+            )}
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pr-2">
+        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pr-1">
           <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">내 컬렉션</p>
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${
+              isSidebarOpen ? 'opacity-100' : 'opacity-0'
+            }`}>내 컬렉션</p>
             <ul className="space-y-1">
               {collectionLinks.map((link) => (
                 <li key={link.label}>
@@ -207,9 +229,17 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     type="button"
                     onClick={() => navigate(link.to)}
                     className={`${itemClass} ${link.active ? activeItemClass : defaultItemClass}`}
+                    title={isSidebarOpen ? undefined : link.label}
                   >
-                    <span>{link.label}</span>
-                    {badge(link.badge)}
+                    <span
+                      className={`whitespace-nowrap transition-opacity duration-150 ${
+                        isSidebarOpen ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      aria-hidden={!isSidebarOpen}
+                    >
+                      {link.label}
+                    </span>
+                    {isSidebarOpen ? badge(link.badge) : null}
                   </button>
                 </li>
               ))}
@@ -217,8 +247,12 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </section>
 
           <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">arXiv 카테고리</p>
-            {loadingCategories && <p className="px-4 py-2 text-xs text-gray-400">카테고리 로딩 중...</p>}
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${
+              isSidebarOpen ? 'opacity-100' : 'opacity-0'
+            }`}>arXiv 카테고리</p>
+            {loadingCategories && isSidebarOpen && (
+              <p className="px-4 py-2 text-xs text-gray-400">카테고리 로딩 중...</p>
+            )}
             <ul className="space-y-1">
               {categories.map((category) => {
                 const isActiveRoot =
@@ -231,14 +265,24 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                         type="button"
                         onClick={() => toggleCategory(category.code)}
                         className={`${itemClass} ${isActiveRoot ? activeItemClass : defaultItemClass}`}
+                        title={isSidebarOpen ? undefined : category.name}
                       >
-                        <span className="flex items-center gap-2">
-                          <span>{category.name}</span>
-                          <span className="text-xs text-gray-400">{category.isExpanded ? 'v' : '>'}</span>
+                        <span className="flex items-center gap-2 overflow-hidden">
+                          <span
+                            className={`whitespace-nowrap transition-opacity duration-150 ${
+                              isSidebarOpen ? 'opacity-100' : 'opacity-0'
+                            }`}
+                            aria-hidden={!isSidebarOpen}
+                          >
+                            {category.name}
+                          </span>
+                          {isSidebarOpen && (
+                            <span className="text-xs text-gray-400">{category.isExpanded ? 'v' : '>'}</span>
+                          )}
                         </span>
-                        {badge(category.paperCount)}
+                        {isSidebarOpen ? badge(category.paperCount) : null}
                       </button>
-                      {category.isExpanded && (
+                      {isSidebarOpen && category.isExpanded && (
                         <div className="mt-1 space-y-1 pl-4">
                           {category.isLoading && (
                             <p className="px-2 py-1 text-xs text-gray-400">하위 카테고리 로딩 중...</p>
@@ -272,7 +316,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </section>
         </nav>
 
-        <div className="mt-8">
+        <div className={`mt-8 transition-opacity duration-200 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
           <button
             onClick={handleLogout}
             className="w-full rounded-md px-4 py-2 text-sm text-gray-500 transition hover:bg-red-50 hover:text-red-600"
