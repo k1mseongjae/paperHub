@@ -5,7 +5,7 @@ import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import { useAuthStore } from './state/authStore';
 
-// 앱이 처음 시작될 때, localStorage를 확인하여 로그인 상태를 복원합니다.
+// 앱 시작 시 인증 상태 초기화
 useAuthStore.getState().initialize();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

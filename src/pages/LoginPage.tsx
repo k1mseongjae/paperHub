@@ -1,5 +1,3 @@
-// src/pages/LoginPage.tsx
-
 import React, { useState } from 'react';
 import { useAuthStore } from '../state/authStore';
 import { useNavigate, Link } from 'react-router-dom';

@@ -1,10 +1,8 @@
-// src/pages/SearchPage.tsx
-
 import React, { useState } from 'react';
-import axios from 'axios'; // arXiv API 호출을 위해 axios를 직접 사용합니다.
-import axiosInstance from '../api/axiosInstance'; // 우리 백엔드 API 호출용 인스턴스
+import axios from 'axios'; // Axios for arXiv API 호출
+import axiosInstance from '../api/axiosInstance'; // BE API 호출용 axios 인스턴스
 
-// arXiv API 결과의 타입을 정의합니다. (XML 파싱 후)
+//  arXiv 논문 데이터 타입 정의
 interface ArxivPaper {
   id: string;
   title: string;
@@ -19,7 +17,7 @@ const SearchPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // XML 문자열에서 특정 태그의 내용을 추출하는 간단한 헬퍼 함수
+  // XML 태그에서 텍스트 추출 헬퍼 함수
   const parseXmlTag = (xml: string, tagName: string): string => {
     const match = xml.match(new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`));
     return match ? match[1].trim() : '';
@@ -34,11 +32,10 @@ const SearchPage = () => {
     setResults([]);
 
     try {
-      // arXiv API URL (CORS 문제가 발생할 수 있습니다)
+      // arXiv API URL 
       const arxivApiUrl = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=10`;
       
-      // CORS 문제를 우회하기 위한 프록시 URL (예: http://localhost:3001/api/search-arxiv?q=...)
-      // 지금은 직접 호출을 시도합니다.
+      // arXiv API 호출
       const response = await axios.get(arxivApiUrl);
       
       const parser = new DOMParser();

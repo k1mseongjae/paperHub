@@ -1,5 +1,3 @@
-// src/pages/DashboardPage.tsx
-
 import React, { useState } from 'react';
 import axiosInstance from '../api/axiosInstance.ts';
 import MyPapersPage from './MyPapersPage.tsx';
