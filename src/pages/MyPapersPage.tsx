@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance.ts';
+import PaperCard from '../components/PaperCard';
+import { parseJsonArraySafe } from '../utils/papers';
 
 // 리스트 응답(CollectionPaperListResp)에 맞춘 타입
 interface PaperListItem {
@@ -46,7 +48,8 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
-  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+  // keep for future progress indicators
+  // const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const loadedDetailIdsRef = useRef<Set<number>>(new Set());
   const [searchParams] = useSearchParams();
 
@@ -188,12 +191,12 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     const loadedIds = loadedDetailIdsRef.current;
     const missing = papers.filter((paper) => !loadedIds.has(paper.id) && !detailErrors[paper.id]);
     if (missing.length === 0) {
-      setIsFetchingDetails(false);
+      // setIsFetchingDetails(false);
       return;
     }
 
     let cancelled = false;
-    setIsFetchingDetails(true);
+    // setIsFetchingDetails(true);
 
     (async () => {
       const fetched: Record<number, PaperInfoDetail> = {};
@@ -237,11 +240,11 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         if (Object.keys(fetched).length > 0) {
           setPapers((prev) =>
             prev.map((paper) => {
-              const detail = fetched[paper.id];
-              if (!detail) return paper;
-              return {
-                ...paper,
-                title: detail.title ?? paper.title,
+            const detail = fetched[paper.id];
+            if (!detail) return paper;
+            return {
+              ...paper,
+              title: detail.title ?? paper.title,
                 authors: detail.authorsJson ?? paper.authors,
                 categories: detail.categoriesJson ?? paper.categories,
                 arxivId: detail.arxivId ?? paper.arxivId,
@@ -256,7 +259,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
           Object.keys(fetched).forEach((id) => nextLoaded.add(Number(id)));
           loadedDetailIdsRef.current = nextLoaded;
         }
-        setIsFetchingDetails(false);
+        // setIsFetchingDetails(false);
       }
     })();
 
@@ -264,32 +267,6 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
       cancelled = true;
     };
   }, [papers, detailErrors, statusSegment]);
-
-  const parseJsonSafely = (jsonString: string): string[] => {
-    if (!jsonString) return [];
-    try {
-      const parsed = JSON.parse(jsonString);
-      if (Array.isArray(parsed)) {
-        return parsed.map((v) => (typeof v === 'string' ? v : JSON.stringify(v)));
-      }
-      if (typeof parsed === 'string') {
-        return [parsed];
-      }
-      return [];
-    } catch (e) {
-      console.warn('Failed to parse JSON as array, fallback to comma split', e);
-      return jsonString
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean);
-    }
-  };
-
-  const formatAuthors = (authors: string[]) => {
-    if (authors.length === 0) return '';
-    if (authors.length === 1) return authors[0];
-    return `${authors[0]}, et al.`;
-  };
 
   // 로딩 중일 때 보여줄 화면
   if (isLoading) {
@@ -305,16 +282,6 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     variant === 'list'
       ? 'flex flex-col gap-4'
       : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
-
-  const cardClass =
-    variant === 'list'
-      ? 'w-full p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col md:flex-row md:items-start md:justify-between gap-4'
-      : 'p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow';
-
-  const cardMetaWrapperClass =
-    variant === 'list'
-      ? 'flex-1'
-      : '';
 
   return (
     <div className={`flex-1 ${variant === 'list' ? '' : 'p-6'}`}>
@@ -334,54 +301,21 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
       {/* Paper List */}
       <div className={containerClass}>
         {papers.length > 0 ? (
-          papers.map((paper) => {
-            const detailError = detailErrors[paper.id];
-            const authorJson = paper.authors ?? '';
-            const authorsArray = parseJsonSafely(authorJson);
-            const categories = parseJsonSafely(paper.categories || '');
-            const authorsLabel = formatAuthors(authorsArray);
-            const publishedYear = paper.publishedDate
-              ? new Date(paper.publishedDate).getFullYear()
-              : undefined;
-            const abstractText = paper.abstractText;
-            const title = paper.title || '제목 미상';
-            const arxivId = paper.arxivId;
-
-            return (
-              <div key={paper.id} className={cardClass}>
-                <div className={cardMetaWrapperClass}>
-                  <Link to={`/paper/${paper.paperId}?collectionId=${paper.id}`} className="hover:underline">
-                    <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title}</h3>
-                  </Link>
-                  {authorsLabel && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {authorsLabel}
-                      {publishedYear ? ` - ${publishedYear}` : ''}
-                    </p>
-                  )}
-                  {abstractText ? (
-                    <p className={`text-sm text-gray-500 mt-3 ${variant === 'list' ? 'line-clamp-2 md:line-clamp-none' : 'line-clamp-3'}`}>{abstractText}</p>
-                  ) : detailError ? (
-                    <p className="text-xs text-red-500 mt-3">{detailError}</p>
-                  ) : !loadedDetailIdsRef.current.has(paper.id) ? (
-                    <p className="text-xs text-gray-400 mt-3 italic">
-                      {isFetchingDetails ? '메타데이터 불러오는 중...' : '초록 정보가 없습니다.'}
-                    </p>
-                  ) : null}
-                  {arxivId && (
-                    <p className="text-xs text-gray-400 mt-2">arXiv: {arxivId}</p>
-                  )}
-                </div>
-                <div className={`mt-4 ${variant === 'list' ? 'md:mt-0 md:w-48 flex-shrink-0' : ''}`}>
-                  {categories.slice(0, 5).map((tag: string) => (
-                    <span key={tag} className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full mb-2">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })
+          papers.map((paper) => (
+            <PaperCard
+              key={paper.id}
+              id={paper.id}
+              paperId={paper.paperId}
+              title={paper.title}
+              abstractText={paper.abstractText}
+              arxivId={paper.arxivId}
+              publishedDate={paper.publishedDate}
+              authors={parseJsonArraySafe(paper.authors)}
+              categories={parseJsonArraySafe(paper.categories)}
+              variant={variant}
+              collectionIdForRoute={paper.id}
+            />
+          ))
         ) : (
           <p className="text-gray-500">아직 추가된 논문이 없습니다. 'Search' 페이지에서 논문을 추가해보세요!</p>
         )}

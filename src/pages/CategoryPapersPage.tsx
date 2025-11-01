@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
+import PaperCard from '../components/PaperCard';
+import { parseJsonArraySafe } from '../utils/papers';
 
 interface CategoryPaper {
   id: number;
@@ -66,18 +68,7 @@ const CategoryPapersPage: React.FC = () => {
 
   const categoryLabel = useMemo(() => code?.replace('.', ' · ') ?? '카테고리', [code]);
 
-  const parseAuthors = (authors?: string) => {
-    if (!authors) return [];
-    try {
-      const parsed = JSON.parse(authors);
-      if (Array.isArray(parsed)) {
-        return parsed.map((name) => (typeof name === 'string' ? name : String(name)));
-      }
-    } catch {
-      // fall through
-    }
-    return authors.split(',').map((name) => name.trim()).filter(Boolean);
-  };
+  // parsing moved to utils (parseJsonArraySafe)
 
   const handlePageChange = (delta: number) => {
     const nextPage = Math.max(0, page + delta);
@@ -126,38 +117,20 @@ const CategoryPapersPage: React.FC = () => {
       )}
 
       <div className="space-y-4">
-        {papers.map((paper) => {
-          const authors = parseAuthors(paper.authors);
-          const publishedYear = paper.publishedDate ? new Date(paper.publishedDate).getFullYear() : null;
-          return (
-            <div key={paper.id} className="rounded-lg bg-white p-6 shadow">
-              <div className="flex flex-col gap-2">
-                <Link to={`/paper/${paper.id}`} className="text-lg font-semibold text-gray-800 hover:underline">
-                  {paper.title}
-                </Link>
-                <div className="text-sm text-gray-600">
-                  {authors.length > 0 ? `${authors[0]} 외 ${Math.max(authors.length - 1, 0)}명` : '저자 정보 없음'}
-                  {publishedYear && <span className="ml-2 text-gray-400">• {publishedYear}</span>}
-                </div>
-                {paper.abstractText && (
-                  <p className="line-clamp-3 text-sm text-gray-500">{paper.abstractText}</p>
-                )}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {paper.primaryCategory && (
-                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-600">
-                      {paper.primaryCategory}
-                    </span>
-                  )}
-                  {paper.arxivId && (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-                      arXiv: {paper.arxivId}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {papers.map((paper) => (
+          <PaperCard
+            key={paper.id}
+            id={paper.id}
+            paperId={paper.id}
+            title={paper.title}
+            abstractText={paper.abstractText}
+            arxivId={paper.arxivId}
+            publishedDate={paper.publishedDate}
+            authors={parseJsonArraySafe(paper.authors)}
+            categories={paper.primaryCategory ? [paper.primaryCategory] : []}
+            variant="list"
+          />
+        ))}
       </div>
     </div>
   );
