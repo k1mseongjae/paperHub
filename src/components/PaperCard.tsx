@@ -1,3 +1,4 @@
+import { KeyboardEvent, MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { formatAuthorsShort, getPublishedYear } from '../utils/papers';
 
@@ -14,6 +15,9 @@ export interface PaperCardProps {
   publishedDate?: string;
   variant?: PaperCardVariant;
   collectionIdForRoute?: number; // if provided, encoded in paper route
+  onClick?: () => void;
+  disabled?: boolean;
+  disableLink?: boolean;
 }
 
 const PaperCard = ({
@@ -27,30 +31,69 @@ const PaperCard = ({
   publishedDate,
   variant = 'grid',
   collectionIdForRoute,
+  onClick,
+  disabled = false,
+  disableLink = false,
 }: PaperCardProps) => {
   const authorsLabel = formatAuthorsShort(authors);
   const publishedYear = getPublishedYear(publishedDate);
+  const isClickable = Boolean(onClick) && !disabled;
 
   const containerClass =
     variant === 'list'
-      ? 'w-full p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col md:flex-row md:items-start md:justify-between gap-4'
-      : 'p-6 bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow';
+      ? 'w-full p-6 bg-white rounded-lg shadow-md transition-shadow flex flex-col md:flex-row md:items-start md:justify-between gap-4'
+      : 'p-6 bg-white rounded-lg shadow-md transition-shadow';
   const metaWrapperClass = variant === 'list' ? 'flex-1' : '';
 
-  const linkHref = paperId
-    ? `/paper/${paperId}${collectionIdForRoute ? `?collectionId=${collectionIdForRoute}` : ''}`
-    : undefined;
+  const linkHref =
+    !disableLink && paperId
+      ? `/paper/${paperId}${collectionIdForRoute ? `?collectionId=${collectionIdForRoute}` : ''}`
+      : undefined;
 
-  const TitleNode = paperId ? (
-    <Link to={linkHref!} className="hover:underline">
-      <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title || '제목 미상'}</h3>
-    </Link>
-  ) : (
-    <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title || '제목 미상'}</h3>
-  );
+  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!isClickable) return;
+    event.preventDefault();
+    onClick?.();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!isClickable) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick?.();
+    }
+  };
+
+  const titleClass = `text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1 ${
+    !linkHref && isClickable && !disabled ? 'hover:underline' : ''
+  }`;
+  const TitleContent = <h3 className={titleClass}>{title || '제목 미상'}</h3>;
+
+  const TitleNode =
+    linkHref && !disabled ? (
+      <Link to={linkHref} className="hover:underline">
+        {TitleContent}
+      </Link>
+    ) : (
+      TitleContent
+    );
+
+  const interactiveClasses = disabled
+    ? 'opacity-70 cursor-not-allowed'
+    : isClickable
+      ? 'hover:shadow-xl cursor-pointer'
+      : 'hover:shadow-xl';
 
   return (
-    <div key={id} className={containerClass}>
+    <div
+      key={id}
+      className={`${containerClass} ${interactiveClasses}`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      aria-disabled={disabled}
+    >
       <div className={metaWrapperClass}>
         {TitleNode}
         {authorsLabel && (
@@ -85,4 +128,3 @@ const PaperCard = ({
 };
 
 export default PaperCard;
-

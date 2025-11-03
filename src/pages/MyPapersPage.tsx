@@ -43,6 +43,24 @@ interface MyPapersPageProps {
   variant?: MyPapersPageVariant;
 }
 
+const dedupePapers = (items: PaperListItem[]): PaperListItem[] => {
+  const map = new Map<number | string, PaperListItem>();
+  items.forEach((item) => {
+    const key = item.paperId && item.paperId > 0 ? item.paperId : `collection-${item.id}`;
+    if (!map.has(key)) {
+      map.set(key, item);
+      return;
+    }
+    const existing = map.get(key)!;
+    const existingTime = existing.addedAt ? Date.parse(existing.addedAt) : Number.POSITIVE_INFINITY;
+    const candidateTime = item.addedAt ? Date.parse(item.addedAt) : Number.POSITIVE_INFINITY;
+    if (candidateTime < existingTime) {
+      map.set(key, item);
+    }
+  });
+  return Array.from(map.values());
+};
+
 const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [papers, setPapers] = useState<PaperListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -171,7 +189,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         if (response.data.success) {
           console.debug('MyPapers list response', response.data.data);
           const normalized = (response.data.data.content ?? []).map(normalizePaper);
-          setPapers(normalized);
+          setPapers(dedupePapers(normalized));
         } else {
           setError(response.data.error?.message || '논문 목록을 불러오는 데 실패했습니다.');
         }

@@ -110,65 +110,86 @@ const CategoryPapersPage: React.FC = () => {
     fetchCategoryPapers();
   }, [code, page, size]);
 
-  const handleImport = useCallback(async (paper: CategoryPaper) => {
-    if (!paper.pdfUrl) {
-      alert('이 논문의 PDF 링크를 찾을 수 없어 바로 불러올 수 없습니다.');
-      return;
-    }
-    setImporting((prev) => ({ ...prev, [paper.id]: true }));
-    try {
-      const response = await fetch(paper.pdfUrl);
-      if (!response.ok) {
-        throw new Error('PDF 다운로드에 실패했습니다.');
+  const handleImport = useCallback(
+    async (paper: CategoryPaper) => {
+      if (!paper.pdfUrl) {
+        alert('이 논문의 PDF 링크를 찾을 수 없어 바로 불러올 수 없습니다.');
+        return;
       }
-      const pdfBlob = await response.blob();
-      const arxivRegex = /(\d{4}\.\d{4,5}(?:v\d+)?)/i;
-      const candidates = [paper.arxivId, paper.pdfUrl, paper.title];
-      let matchedId = '';
-      for (const candidate of candidates) {
-        if (typeof candidate !== 'string') continue;
-        const match = candidate.match(arxivRegex);
-        if (match) {
-          matchedId = match[1];
-          break;
+      setImporting((prev) => ({ ...prev, [paper.id]: true }));
+      try {
+        const response = await fetch(paper.pdfUrl);
+        if (!response.ok) {
+          throw new Error('PDF 다운로드에 실패했습니다.');
         }
+        const pdfBlob = await response.blob();
+        const arxivRegex = /(\d{4}\.\d{4,5}(?:v\d+)?)/i;
+        const candidates = [paper.arxivId, paper.pdfUrl, paper.title];
+        let matchedId = '';
+        for (const candidate of candidates) {
+          if (typeof candidate !== 'string') continue;
+          const match = candidate.match(arxivRegex);
+          if (match) {
+            matchedId = match[1];
+            break;
+          }
+        }
+        const sanitizedTitle = (paper.title || 'paper').replace(/[\s/\\]+/g, '_').slice(0, 50) || 'paper';
+        const filename = matchedId ? `${matchedId}.pdf` : `${sanitizedTitle}.pdf`;
+        const uploadFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+        const formData = new FormData();
+        formData.append('file', uploadFile);
+        const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const newPaperId = uploadResp?.data?.data?.paperId;
+        if (!newPaperId) {
+          throw new Error('paperId not returned from upload response');
+        }
+        const collectionResp = await axiosInstance.post('/api/collections/to-read', { paperId: newPaperId });
+        const collectionId = collectionResp?.data?.data?.collectionPaperId;
+        setPapers((prev) =>
+          prev.map((item) => (item.id === paper.id ? { ...item, paperId: newPaperId } : item))
+        );
+        if (collectionId) {
+          navigate(`/paper/${newPaperId}?collectionId=${collectionId}`);
+        } else {
+          navigate(`/paper/${newPaperId}`);
+        }
+      } catch (importErr) {
+        console.error('Failed to import paper from metadata', importErr);
+        const message =
+          (importErr as any)?.response?.data?.error?.message ||
+          (importErr instanceof Error ? importErr.message : '논문 가져오기에 실패했습니다.');
+        alert(message);
+      } finally {
+        setImporting((prev) => {
+          const next = { ...prev };
+          delete next[paper.id];
+          return next;
+        });
       }
-      const sanitizedTitle = (paper.title || 'paper').replace(/[\s/\\]+/g, '_').slice(0, 50) || 'paper';
-      const filename = matchedId ? `${matchedId}.pdf` : `${sanitizedTitle}.pdf`;
-      const uploadFile = new File([pdfBlob], filename, { type: 'application/pdf' });
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const newPaperId = uploadResp?.data?.data?.paperId;
-      if (!newPaperId) {
-        throw new Error('paperId not returned from upload response');
+    },
+    [navigate]
+  );
+
+  const handleOpenPaper = useCallback(
+    async (paper: CategoryPaper) => {
+      if (importing[paper.id]) {
+        return;
       }
-      const collectionResp = await axiosInstance.post('/api/collections/to-read', { paperId: newPaperId });
-      const collectionId = collectionResp?.data?.data?.collectionPaperId;
-      setPapers((prev) =>
-        prev.map((item) => (item.id === paper.id ? { ...item, paperId: newPaperId } : item))
-      );
-      if (collectionId) {
-        navigate(`/paper/${newPaperId}?collectionId=${collectionId}`);
-      } else {
-        navigate(`/paper/${newPaperId}`);
+      if (paper.paperId) {
+        navigate(`/paper/${paper.paperId}`);
+        return;
       }
-    } catch (importErr) {
-      console.error('Failed to import paper from metadata', importErr);
-      const message =
-        (importErr as any)?.response?.data?.error?.message ||
-        (importErr instanceof Error ? importErr.message : '논문 가져오기에 실패했습니다.');
-      alert(message);
-    } finally {
-      setImporting((prev) => {
-        const next = { ...prev };
-        delete next[paper.id];
-        return next;
-      });
-    }
-  }, [navigate]);
+      if (!paper.pdfUrl) {
+        alert('이 논문은 아직 PDF 링크가 없어 열 수 없습니다.');
+        return;
+      }
+      await handleImport(paper);
+    },
+    [handleImport, importing, navigate]
+  );
 
   const categoryLabel = useMemo(() => code?.replace('.', ' · ') ?? '카테고리', [code]);
 
@@ -223,8 +244,9 @@ const CategoryPapersPage: React.FC = () => {
       <div className="space-y-4">
         {papers.map((paper) => {
           const isImporting = Boolean(importing[paper.id]);
+          const cannotImport = !paper.paperId && !paper.pdfUrl;
           return (
-            <div key={paper.id} className="space-y-2">
+            <div key={paper.id} className="space-y-1">
               <PaperCard
                 id={paper.id}
                 paperId={paper.paperId}
@@ -235,21 +257,15 @@ const CategoryPapersPage: React.FC = () => {
                 authors={parseJsonArraySafe(paper.authors)}
                 categories={paper.primaryCategory ? [paper.primaryCategory] : []}
                 variant="list"
+                onClick={() => handleOpenPaper(paper)}
+                disableLink
+                disabled={isImporting || cannotImport}
               />
-              {!paper.paperId && (
-                <div className="flex flex-wrap items-center gap-3 px-1">
-                  <button
-                    type="button"
-                    onClick={() => handleImport(paper)}
-                    disabled={isImporting}
-                    className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                  >
-                    {isImporting ? '불러오는 중...' : '내 서재에 추가하고 열기'}
-                  </button>
-                  {!paper.pdfUrl && (
-                    <span className="text-xs text-gray-500">PDF 링크를 찾을 수 없습니다.</span>
-                  )}
-                </div>
+              {isImporting && (
+                <p className="px-1 text-xs text-indigo-600">PDF를 불러오는 중입니다...</p>
+              )}
+              {cannotImport && !isImporting && (
+                <p className="px-1 text-xs text-gray-500">PDF 링크를 찾을 수 없어 바로 열 수 없습니다.</p>
               )}
             </div>
           );
