@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 // Sample data for nodes (topics) and edges (connections)
 const nodes = [
@@ -108,4 +108,3 @@ const ClusteringPage = () => {
 };
 
 export default ClusteringPage;
-
