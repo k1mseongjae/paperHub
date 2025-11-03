@@ -17,19 +17,9 @@ interface CollectionItemDetail {
 interface PaperViewDetail {
   sha256: string;
   numPages: number;
-  pdfUrl?: string;
-  title?: string;
 }
 
 type Rect = { x: number; y: number; w: number; h: number };
-
-type HighlightLayer = {
-  rect: Rect;
-  color: string;
-  anchorId: number;
-  highlightId?: number;
-  type: 'highlight' | 'memo';
-};
 
 interface AnnotationAnchor {
   id: number;
@@ -109,10 +99,6 @@ const NoteViewerPage: React.FC = () => {
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [selectedAnchorId, setSelectedAnchorId] = useState<number | null>(null);
   const [memoDraft, setMemoDraft] = useState('');
-  const [pageMemoDraft, setPageMemoDraft] = useState('');
-  const [selectionMemoDraft, setSelectionMemoDraft] = useState('');
-  const [isSelectionMemoMode, setIsSelectionMemoMode] = useState(false);
-  const selectionToolbarWidth = isSelectionMemoMode ? 320 : 220;
 
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -138,19 +124,6 @@ const NoteViewerPage: React.FC = () => {
 
       try {
         setError(null);
-        setCollectionItem(null);
-        setPaperDetail(null);
-        setPdfUrl(null);
-        setAnnotations(null);
-        setCurrentPage(1);
-        setNumPages(1);
-        setSelectedAnchorId(null);
-        setMemoDraft('');
-        setPageMemoDraft('');
-        setSelectionDraft(null);
-        setIsSelectionMemoMode(false);
-        setSelectionMemoDraft('');
-        setTitle('Loading...');
         if (collectionId) {
           const resp = await axiosInstance.get(`/api/collection-items/${collectionId}`);
           if (resp.data.success) {
@@ -168,20 +141,6 @@ const NoteViewerPage: React.FC = () => {
           const data = paperResp.data.data as PaperViewDetail;
           setPaperDetail(data);
           setNumPages(data.numPages ?? 1);
-          if (data.pdfUrl) {
-            setPdfUrl((prev) => prev ?? data.pdfUrl ?? null);
-          }
-          if (data.title) {
-            setTitle((prev) => {
-              const isPlaceholder = !prev || prev === 'Loading...' || prev === '제목 미상';
-              if (!collectionId || isPlaceholder) {
-                return data.title ?? '제목 미상';
-              }
-              return prev;
-            });
-          } else if (!collectionId) {
-            setTitle('제목 미상');
-          }
         }
       } catch (e) {
         console.error(e);
@@ -219,8 +178,6 @@ const NoteViewerPage: React.FC = () => {
 
   const clearSelection = useCallback(() => {
     setSelectionDraft(null);
-    setIsSelectionMemoMode(false);
-    setSelectionMemoDraft('');
     const selection = window.getSelection();
     if (selection) {
       selection.removeAllRanges();
@@ -228,8 +185,6 @@ const NoteViewerPage: React.FC = () => {
   }, []);
 
   const updateSelectionFromWindow = useCallback(() => {
-    setIsSelectionMemoMode(false);
-    setSelectionMemoDraft('');
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       setSelectionDraft(null);
@@ -304,36 +259,6 @@ const NoteViewerPage: React.FC = () => {
     }
   }, [selectionDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
 
-  const handleCreateSelectionMemo = useCallback(async () => {
-    if (!selectionDraft || !paperSha) return;
-    const text = selectionMemoDraft.trim();
-    if (!selectionDraft.rects.length) {
-      alert('선택된 영역이 없습니다.');
-      return;
-    }
-    if (!text) {
-      alert('메모 내용을 입력해주세요.');
-      return;
-    }
-
-    try {
-      await axiosInstance.post('/api/memos', {
-        paperSha256: paperSha,
-        page: currentPage,
-        rects: selectionDraft.rects,
-        exact: selectionDraft.text,
-        body: text,
-      });
-      setSelectionMemoDraft('');
-      setIsSelectionMemoMode(false);
-      clearSelection();
-      fetchAnnotations(currentPage);
-    } catch (e) {
-      console.error(e);
-      alert('메모를 저장하지 못했습니다.');
-    }
-  }, [selectionDraft, selectionMemoDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
-
   const handleAddMemo = useCallback(async () => {
     if (!selectedAnchorId) {
       alert('먼저 하이라이트를 선택해주세요.');
@@ -357,68 +282,25 @@ const NoteViewerPage: React.FC = () => {
     }
   }, [selectedAnchorId, memoDraft, currentPage, fetchAnnotations]);
 
-  const handleAddPageMemo = useCallback(async () => {
-    if (!paperSha) {
-      alert('논문 식별자를 찾을 수 없습니다.');
-      return;
-    }
-    const text = pageMemoDraft.trim();
-    if (!text) {
-      alert('메모 내용을 입력해주세요.');
-      return;
-    }
-    try {
-      await axiosInstance.post('/api/memos', {
-        paperSha256: paperSha,
-        page: currentPage,
-        rects: [],
-        signature: 'page-memo',
-        body: text,
-      });
-      setPageMemoDraft('');
-      fetchAnnotations(currentPage);
-    } catch (e) {
-      console.error(e);
-      alert('페이지 메모를 저장하지 못했습니다.');
-    }
-  }, [paperSha, currentPage, pageMemoDraft, fetchAnnotations]);
-
   useEffect(() => {
     setMemoDraft('');
   }, [selectedAnchorId]);
 
   const highlightLayers = useMemo(() => {
-    if (!annotations) return [] as HighlightLayer[];
-    const layers: HighlightLayer[] = [];
+    if (!annotations) return [] as Array<{ rect: Rect; color: string; anchorId: number; highlightId: number }>;
+    const layers: Array<{ rect: Rect; color: string; anchorId: number; highlightId: number }> = [];
     annotations.items.forEach((item) => {
       const anchorRects = item.anchor.rects || [];
-      if (!anchorRects.length) {
-        return;
-      }
-      if (item.highlights.length > 0) {
-        item.highlights.forEach((highlight) => {
-          anchorRects.forEach((rect) => {
-            layers.push({
-              rect,
-              color: highlight.color || DEFAULT_HIGHLIGHT_COLOR,
-              anchorId: item.anchor.id,
-              highlightId: highlight.id,
-              type: 'highlight',
-            });
-          });
-        });
-        return;
-      }
-      if (item.notes.length > 0) {
+      item.highlights.forEach((highlight) => {
         anchorRects.forEach((rect) => {
           layers.push({
             rect,
-            color: '#60a5fa',
+            color: highlight.color || DEFAULT_HIGHLIGHT_COLOR,
             anchorId: item.anchor.id,
-            type: 'memo',
+            highlightId: highlight.id,
           });
         });
-      }
+      });
     });
     return layers;
   }, [annotations]);
@@ -429,52 +311,16 @@ const NoteViewerPage: React.FC = () => {
         <h3 className="text-xl font-bold text-gray-800">내 하이라이트 & 메모</h3>
         <p className="text-sm text-gray-500">페이지 {currentPage} / {numPages}</p>
       </div>
-      <div className="border-b border-gray-200 bg-gray-50 p-4 space-y-3">
-        <div className="text-sm font-semibold text-gray-700">페이지 메모</div>
-        <textarea
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-          rows={2}
-          placeholder="이 페이지 전체에 대한 메모를 남겨보세요"
-          value={pageMemoDraft}
-          onChange={(e) => setPageMemoDraft(e.target.value)}
-        />
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => setPageMemoDraft('')}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"
-          >
-            비우기
-          </button>
-          <button
-            type="button"
-            onClick={handleAddPageMemo}
-            disabled={!pageMemoDraft.trim()}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold text-white ${pageMemoDraft.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-300 cursor-not-allowed'}`}
-          >
-            메모 저장
-          </button>
-        </div>
-      </div>
       <div className="flex-1 overflow-y-auto">
         {annotationsLoading && (
           <p className="p-4 text-sm text-gray-500">불러오는 중...</p>
         )}
         {!annotationsLoading && (!annotations || annotations.count === 0) && (
-          <p className="p-4 text-sm text-gray-500">이 페이지에는 아직 하이라이트나 메모가 없습니다.</p>
+          <p className="p-4 text-sm text-gray-500">이 페이지에는 아직 하이라이트가 없습니다.</p>
         )}
         <div className="p-4 space-y-4">
           {annotations?.items.map((item) => {
-            const hasHighlights = (item.highlights?.length ?? 0) > 0;
-            const hasRects = (item.anchor.rects?.length ?? 0) > 0;
-            const label = hasHighlights ? '하이라이트' : hasRects ? '영역 메모' : '페이지 메모';
-            const color = hasHighlights ? item.highlights[0]?.color || DEFAULT_HIGHLIGHT_COLOR : '#60a5fa';
-            const previewText = item.anchor.exact && item.anchor.exact.trim().length > 0
-              ? item.anchor.exact
-              : hasRects
-                ? '선택한 영역에 연결된 메모입니다.'
-                : '이 페이지 전체에 대한 메모입니다.';
-            const previewBg = colorToRgba(color, hasHighlights ? 0.4 : 0.25);
+            const color = item.highlights[0]?.color || DEFAULT_HIGHLIGHT_COLOR;
             const isActive = selectedAnchorId === item.anchor.id;
             return (
               <div
@@ -486,12 +332,12 @@ const NoteViewerPage: React.FC = () => {
                   onClick={() => setSelectedAnchorId(item.anchor.id)}
                   className="w-full text-left p-4"
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Highlight</div>
                   <div
                     className="mt-2 rounded-md p-3 text-sm"
-                    style={{ backgroundColor: previewBg }}
+                    style={{ backgroundColor: colorToRgba(color, 0.4) }}
                   >
-                    {previewText}
+                    {item.anchor.exact || '(텍스트 없음)'}
                   </div>
                   <div className="mt-3 text-xs text-gray-500">노트 {item.notes.length}개</div>
                 </button>
@@ -602,22 +448,20 @@ const NoteViewerPage: React.FC = () => {
               </Document>
 
               <div className="pointer-events-none absolute inset-0">
-                {highlightLayers.map(({ rect, color, anchorId, highlightId, type }) => (
+                {highlightLayers.map(({ rect, color, anchorId, highlightId }) => (
                   <div
-                    key={`${anchorId}-${highlightId ?? 'memo'}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
+                    key={`${anchorId}-${highlightId}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
                     style={{
                       position: 'absolute',
                       left: `${rect.x * 100}%`,
                       top: `${rect.y * 100}%`,
                       width: `${rect.w * 100}%`,
                       height: `${rect.h * 100}%`,
-                      backgroundColor: colorToRgba(color, type === 'memo' ? 0.25 : undefined),
+                      backgroundColor: colorToRgba(color),
                       borderRadius: '4px',
-                      border: type === 'memo' ? '1px solid rgba(59, 130, 246, 0.6)' : undefined,
                     }}
-                    className={`pointer-events-auto ${type === 'memo' ? 'cursor-pointer' : ''}`}
+                    className="pointer-events-auto"
                     onClick={() => setSelectedAnchorId(anchorId)}
-                    title={type === 'memo' ? '메모 위치' : '하이라이트'}
                   />
                 ))}
               </div>
@@ -626,67 +470,22 @@ const NoteViewerPage: React.FC = () => {
                 <div
                   style={{
                     position: 'absolute',
-                    left: Math.min(
-                      selectionDraft.toolbar.x,
-                      Math.max((pageContainerRef.current?.clientWidth ?? 0) - selectionToolbarWidth, 0)
-                    ),
+                    left: Math.min(selectionDraft.toolbar.x, (pageContainerRef.current?.clientWidth ?? 0) - 160),
                     top: selectionDraft.toolbar.y,
-                    width: selectionToolbarWidth,
                   }}
-                  className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md"
+                  className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md"
                 >
-                  {!isSelectionMemoMode ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 mr-2">선택 영역</span>
-                      <button
-                        type="button"
-                        className="rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
-                        onClick={() => handleCreateHighlight(DEFAULT_HIGHLIGHT_COLOR)}
-                      >
-                        하이라이트
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-200"
-                        onClick={() => setIsSelectionMemoMode(true)}
-                      >
-                        메모
-                      </button>
-                      <button type="button" className="text-xs text-gray-500" onClick={clearSelection}>
-                        취소
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <textarea
-                        className="w-full rounded-md border border-gray-200 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                        rows={3}
-                        placeholder="메모를 입력하세요"
-                        value={selectionMemoDraft}
-                        onChange={(e) => setSelectionMemoDraft(e.target.value)}
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
-                          onClick={() => {
-                            setSelectionMemoDraft('');
-                            setIsSelectionMemoMode(false);
-                          }}
-                        >
-                          돌아가기
-                        </button>
-                        <button
-                          type="button"
-                          className={`rounded px-3 py-1 text-xs font-semibold text-white ${selectionMemoDraft.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-300 cursor-not-allowed'}`}
-                          onClick={handleCreateSelectionMemo}
-                          disabled={!selectionMemoDraft.trim()}
-                        >
-                          메모 저장
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <span className="text-xs text-gray-500 mr-2">선택 영역</span>
+                  <button
+                    type="button"
+                    className="rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
+                    onClick={() => handleCreateHighlight(DEFAULT_HIGHLIGHT_COLOR)}
+                  >
+                    하이라이트
+                  </button>
+                  <button type="button" className="text-xs text-gray-500" onClick={clearSelection}>
+                    취소
+                  </button>
                 </div>
               )}
             </div>
