@@ -1,4 +1,4 @@
-import { KeyboardEvent, MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { formatAuthorsShort, getPublishedYear } from '../utils/papers';
 
