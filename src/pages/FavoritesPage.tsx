@@ -5,7 +5,7 @@ const FavoritesPage: React.FC = () => {
     <div className="flex-1 rounded-lg bg-white p-6 shadow">
       <h2 className="text-2xl font-semibold text-gray-800">즐겨찾기</h2>
       <p className="mt-2 text-sm text-gray-500">
-        즐겨찾기 기능이 준비 중입니다. 
+        즐겨찾기 된 논문이 없습니다. 
       </p>
     </div>
   );

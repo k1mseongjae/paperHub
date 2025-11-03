@@ -193,8 +193,6 @@ const CategoryPapersPage: React.FC = () => {
 
   const categoryLabel = useMemo(() => code?.replace('.', ' · ') ?? '카테고리', [code]);
 
-  // parsing moved to utils (parseJsonArraySafe)
-
   const handlePageChange = (delta: number) => {
     const nextPage = Math.max(0, page + delta);
     setSearchParams({ page: String(nextPage), size: String(size) });

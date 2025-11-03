@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-// Sample data for nodes (topics) and edges (connections)
+// 더미 구현된 노드 및 엣지 데이터
 const nodes = [
   { id: 'nlp', label: 'Natural Language Processing', x: 200, y: 300, size: 30 },
   { id: 'transformer', label: 'Transformer Models', x: 400, y: 200, size: 20 },
@@ -23,7 +23,6 @@ const ClusteringPage = () => {
 
   const findNode = (id: string) => nodes.find(n => n.id === id);
 
-  // Deriving linked topics from the selected node for robust rendering
   const linkedTopics = edges
     .map(edge => {
       if (edge.source === selectedNode.id) {
@@ -34,8 +33,7 @@ const ClusteringPage = () => {
       }
       return null;
     })
-    .filter((node): node is typeof nodes[0] => !!node); // Filter out nulls and satisfy TypeScript
-
+    .filter((node): node is typeof nodes[0] => !!node); 
   return (
     <div className="flex h-full">
       <div className="flex-1 bg-gray-800 rounded-lg shadow-inner relative overflow-hidden">
@@ -49,7 +47,7 @@ const ClusteringPage = () => {
           {edges.map((edge, i) => {
             const sourceNode = findNode(edge.source);
             const targetNode = findNode(edge.target);
-            if (!sourceNode || !targetNode) return null; // Ensure nodes exist before rendering edge
+            if (!sourceNode || !targetNode) return null; 
             return (
               <line
                 key={i}

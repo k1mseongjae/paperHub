@@ -159,14 +159,14 @@ const SearchPage = () => {
                   rel="noopener noreferrer"
                   className="text-sm text-indigo-600 hover:underline"
                 >
-                  View PDF
+                  PDF 보기
                 </a>
                 <button
                   id={`add-btn-${paper.id}`}
                   onClick={() => handleAddPaper(paper)}
                   className="ml-4 rounded-md bg-green-500 px-3 py-1 text-sm font-semibold text-white hover:bg-green-600"
                 >
-                  Add to My Papers
+                  내 컬렉션에 추가
                 </button>
               </div>
             </div>

@@ -12,7 +12,7 @@ interface PaperListItem {
   lastOpenedAt?: string;
   addedAt?: string;
   updatedAt?: string;
-  // paperInfo fields
+  // paperInfo 필드
   title?: string;
   authors?: string;      // JSON string: ["A B","C D"]
   primaryCategory?: string;
@@ -23,7 +23,7 @@ interface PaperListItem {
   publishedDate?: string;
 }
 
-// 상세 응답(CollectionPaperInfo)에 맞춘 타입 (필요 필드만)
+// PaperInfoDetailResp에 맞춘 타입
 interface PaperInfoDetail {
   id: number;
   paperId: number;
@@ -32,9 +32,9 @@ interface PaperInfoDetail {
   abstractText?: string;
   primaryCategory?: string;
   pdfUrl?: string;
-  authorsJson?: string;     // JSON string
-  categoriesJson?: string;  // JSON string
-  publishedDate?: string;   // ISO date
+  authorsJson?: string;     
+  categoriesJson?: string;  
+  publishedDate?: string;   
 }
 
 type MyPapersPageVariant = 'grid' | 'list';
@@ -66,8 +66,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
-  // keep for future progress indicators
-  // const [isFetchingDetails, setIsFetchingDetails] = useState(false);
+
   const loadedDetailIdsRef = useRef<Set<number>>(new Set());
   const [searchParams] = useSearchParams();
 
@@ -174,7 +173,6 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     };
   };
 
-  // useEffect를 사용해 컴포넌트가 처음 렌더링될 때 API를 호출합니다.
   useEffect(() => {
     const fetchPapers = async () => {
       try {
@@ -183,9 +181,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         setPapers([]);
         loadedDetailIdsRef.current = new Set();
         setDetailErrors({});
-        // 'to-read' 상태의 논문 목록을 가져옵니다. (업데이트된 컬렉션 API)
         const response = await axiosInstance.get(`/api/collections/${statusSegment}`);
-        // 백엔드 응답 구조에 맞게 데이터 파싱
         if (response.data.success) {
           console.debug('MyPapers list response', response.data.data);
           const normalized = (response.data.data.content ?? []).map(normalizePaper);
@@ -204,17 +200,14 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     fetchPapers();
   }, [statusSegment]);
 
-  // 목록이 로딩된 후, 상세 메타데이터를 추가로 가져옵니다.
   useEffect(() => {
     const loadedIds = loadedDetailIdsRef.current;
     const missing = papers.filter((paper) => !loadedIds.has(paper.id) && !detailErrors[paper.id]);
     if (missing.length === 0) {
-      // setIsFetchingDetails(false);
       return;
     }
 
     let cancelled = false;
-    // setIsFetchingDetails(true);
 
     (async () => {
       const fetched: Record<number, PaperInfoDetail> = {};
