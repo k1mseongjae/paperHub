@@ -6,17 +6,31 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
+type ReadingStatus = 'TO_READ' | 'IN_PROGRESS' | 'DONE';
+
 interface CollectionItemDetail {
   id: number;
   paperId: number;
   title?: string;
   pdfUrl?: string;
   arxivId?: string;
+  status?: ReadingStatus;
+  favorite?: boolean;
+  tags?: Record<string, unknown>;
 }
 
 interface PaperViewDetail {
   sha256: string;
   numPages: number;
+}
+
+interface StatusChangeResp {
+  collectionPaperId: number;
+  paperId: number;
+  status: ReadingStatus;
+  lastOpenedAt?: string;
+  addedAt?: string;
+  updatedAt?: string;
 }
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -65,6 +79,36 @@ interface SelectionDraft {
 
 const DEFAULT_HIGHLIGHT_COLOR = '#fde047';
 
+const STATUS_OPTIONS: Array<{
+  status: ReadingStatus;
+  slug: 'to-read' | 'in-progress' | 'done';
+  label: string;
+  description: string;
+  badgeClass: string;
+}> = [
+  {
+    status: 'TO_READ',
+    slug: 'to-read',
+    label: '읽을 예정',
+    description: '나중에 읽을 목록에 보관합니다.',
+    badgeClass: 'bg-sky-100 text-sky-700',
+  },
+  {
+    status: 'IN_PROGRESS',
+    slug: 'in-progress',
+    label: '읽는 중',
+    description: '지금 읽고 있는 논문입니다.',
+    badgeClass: 'bg-amber-100 text-amber-700',
+  },
+  {
+    status: 'DONE',
+    slug: 'done',
+    label: '완료됨',
+    description: '읽기를 마친 논문입니다.',
+    badgeClass: 'bg-emerald-100 text-emerald-700',
+  },
+];
+
 const colorToRgba = (hex: string, alpha = 0.35) => {
   const cleaned = hex.replace('#', '');
   if (cleaned.length === 3) {
@@ -99,8 +143,14 @@ const NoteViewerPage: React.FC = () => {
   const [selectionDraft, setSelectionDraft] = useState<SelectionDraft | null>(null);
   const [selectedAnchorId, setSelectedAnchorId] = useState<number | null>(null);
   const [memoDraft, setMemoDraft] = useState('');
+  const [collectionStatus, setCollectionStatus] = useState<ReadingStatus | null>(null);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteUpdating, setFavoriteUpdating] = useState(false);
 
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
 
   const paperId = useMemo(() => {
     if (!paperIdParam) return null;
@@ -115,6 +165,15 @@ const NoteViewerPage: React.FC = () => {
     return Number.isNaN(parsed) ? null : parsed;
   }, [searchParams]);
 
+  const currentStatusOption = useMemo(
+    () => STATUS_OPTIONS.find((option) => option.status === collectionStatus) ?? null,
+    [collectionStatus]
+  );
+
+  const statusButtonLabel = currentStatusOption?.label ?? '상태 지정';
+  const statusBadgeClass = currentStatusOption?.badgeClass ?? 'bg-gray-200 text-gray-600';
+  const statusDescription = currentStatusOption?.description ?? '읽기 상태를 선택하세요.';
+
   useEffect(() => {
     const fetchInitial = async () => {
       if (!paperId) {
@@ -124,6 +183,9 @@ const NoteViewerPage: React.FC = () => {
 
       try {
         setError(null);
+        setStatusMenuOpen(false);
+        setCollectionStatus(null);
+        setCollectionItem(null);
         if (collectionId) {
           const resp = await axiosInstance.get(`/api/collection-items/${collectionId}`);
           if (resp.data.success) {
@@ -133,6 +195,14 @@ const NoteViewerPage: React.FC = () => {
             if (info.pdfUrl) {
               setPdfUrl(info.pdfUrl);
             }
+            if (info.status) {
+              setCollectionStatus(info.status);
+            }
+            const favoriteFromTags = Boolean(
+              info.favorite ??
+                (info.tags && typeof info.tags === 'object' ? (info.tags as Record<string, unknown>)['favorite'] : false)
+            );
+            setIsFavorite(favoriteFromTags);
           }
         }
 
@@ -150,6 +220,23 @@ const NoteViewerPage: React.FC = () => {
 
     fetchInitial();
   }, [paperId, collectionId]);
+
+  useEffect(() => {
+    if (!collectionId) {
+      setCollectionStatus(null);
+      setIsFavorite(false);
+      setFavoriteUpdating(false);
+      return;
+    }
+    setCollectionStatus(collectionItem?.status ?? null);
+    const favoriteFromTags = Boolean(
+      collectionItem?.favorite ??
+        (collectionItem?.tags && typeof collectionItem.tags === 'object'
+          ? (collectionItem.tags as Record<string, unknown>)['favorite']
+          : false)
+    );
+    setIsFavorite(favoriteFromTags);
+  }, [collectionId, collectionItem]);
 
   const paperSha = paperDetail?.sha256;
 
@@ -239,6 +326,17 @@ const NoteViewerPage: React.FC = () => {
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, [updateSelectionFromWindow]);
 
+  useEffect(() => {
+    if (!statusMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusMenuRef.current && !statusMenuRef.current.contains(event.target as Node)) {
+        setStatusMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [statusMenuOpen]);
+
   const handleCreateHighlight = useCallback(async (color: string) => {
     if (!selectionDraft || !paperSha) return;
     if (!selectionDraft.rects.length) return;
@@ -281,6 +379,70 @@ const NoteViewerPage: React.FC = () => {
       alert('메모를 저장하지 못했습니다.');
     }
   }, [selectedAnchorId, memoDraft, currentPage, fetchAnnotations]);
+
+  const handleChangeStatus = useCallback(
+    async (slug: 'to-read' | 'in-progress' | 'done') => {
+      if (!collectionId) {
+        alert('내 서재에 추가된 논문만 상태를 변경할 수 있습니다.');
+        return;
+      }
+      if (statusUpdating) return;
+      setStatusUpdating(true);
+      try {
+        const resp = await axiosInstance.patch(`/api/collection-items/${slug}/${collectionId}`, {});
+        if (resp.data?.success) {
+          const data = resp.data.data as StatusChangeResp;
+          setCollectionStatus(data.status);
+          setCollectionItem((prev) => (prev ? { ...prev, status: data.status } : prev));
+          window.dispatchEvent(new Event('collection:refresh'));
+          setStatusMenuOpen(false);
+        } else {
+          const message = resp.data?.error?.message || '상태를 변경하지 못했습니다.';
+          console.error('status change failed', resp.data);
+          alert(message);
+        }
+      } catch (e) {
+        console.error(e);
+        alert('상태를 변경하지 못했습니다.');
+      } finally {
+        setStatusUpdating(false);
+      }
+    },
+    [collectionId, statusUpdating]
+  );
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!collectionId) {
+      alert('내 서재에 추가된 논문만 즐겨찾기 할 수 있습니다.');
+      return;
+    }
+
+    if (favoriteUpdating) return;
+    setFavoriteUpdating(true);
+    try {
+      if (isFavorite) {
+        await axiosInstance.delete(`/api/collection-items/${collectionId}/favorite`);
+      } else {
+        await axiosInstance.post(`/api/collection-items/${collectionId}/favorite`, {});
+      }
+      setIsFavorite((prev) => !prev);
+      setCollectionItem((prev) => {
+        if (!prev) return prev;
+        const nextFavorite = !isFavorite;
+        const nextTags = {
+          ...(prev.tags && typeof prev.tags === 'object' ? prev.tags : {}),
+          favorite: nextFavorite,
+        } as Record<string, unknown>;
+        return { ...prev, favorite: nextFavorite, tags: nextTags };
+      });
+      window.dispatchEvent(new Event('collection:refresh'));
+    } catch (e) {
+      console.error(e);
+      alert('즐겨찾기 상태를 변경하지 못했습니다.');
+    } finally {
+      setFavoriteUpdating(false);
+    }
+  }, [collectionId, isFavorite, favoriteUpdating]);
 
   useEffect(() => {
     setMemoDraft('');
@@ -494,6 +656,65 @@ const NoteViewerPage: React.FC = () => {
       </div>
 
       {renderSidebar()}
+      {collectionId && (
+        <div className="fixed bottom-8 right-8 z-40">
+          <div ref={statusMenuRef} className="relative">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleToggleFavorite}
+                disabled={favoriteUpdating}
+                className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold shadow-lg transition ${
+                  isFavorite
+                    ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
+                } ${favoriteUpdating ? 'opacity-80 cursor-wait' : ''}`}
+              >
+                <span className="text-base">{isFavorite ? '★' : '☆'}</span>
+                <span>즐겨찾기</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusMenuOpen((prev) => !prev)}
+                disabled={statusUpdating}
+                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg transition ${statusBadgeClass} ${statusUpdating ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:shadow-xl'} ${statusMenuOpen ? 'ring-2 ring-indigo-200 ring-offset-2' : ''}`}
+              >
+                <span>{statusButtonLabel}</span>
+                <span className="text-xs text-current">▾</span>
+              </button>
+            </div>
+            {statusMenuOpen && (
+              <div className="absolute bottom-12 right-0 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
+                <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-xs text-gray-500">{statusDescription}</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {STATUS_OPTIONS.map((option) => {
+                    const isActive = option.status === collectionStatus;
+                    return (
+                      <button
+                        key={option.status}
+                        type="button"
+                        onClick={() => handleChangeStatus(option.slug)}
+                        disabled={statusUpdating || isActive}
+                        className={`w-full px-4 py-3 text-left text-sm transition ${
+                          isActive ? 'bg-indigo-50 font-semibold text-indigo-700' : 'hover:bg-gray-50'
+                        } ${statusUpdating ? 'cursor-wait' : ''}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{option.label}</span>
+                          {isActive && <span className="text-xs text-indigo-500">선택됨</span>}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">{option.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

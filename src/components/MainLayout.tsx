@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { useAuthStore } from '../state/authStore';
@@ -35,15 +35,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false); // hover-driven sidebar
 
-  useEffect(() => {
-    fetchCollectionCounts();
-  }, []);
-
-  useEffect(() => {
-    fetchRootCategories();
-  }, []);
-
-  const fetchCollectionCounts = async () => {
+  const fetchCollectionCounts = useCallback(async () => {
     try {
       const resp = await axiosInstance.get('/api/collections/count');
       if (resp.data?.success) {
@@ -58,7 +50,23 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     } catch (error) {
       console.error('Failed to fetch collection counts', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCollectionCounts();
+  }, [fetchCollectionCounts]);
+
+  useEffect(() => {
+    fetchRootCategories();
+  }, []);
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchCollectionCounts();
+    };
+    window.addEventListener('collection:refresh', handleRefresh);
+    return () => window.removeEventListener('collection:refresh', handleRefresh);
+  }, [fetchCollectionCounts]);
 
   const fetchRootCategories = async () => {
     setLoadingCategories(true);
