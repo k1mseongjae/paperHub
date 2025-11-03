@@ -2,3 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.react-pdf__Page__textContent span {
+  color: transparent !important;
+}
+
+.react-pdf__Page__textContent span::selection {
+  background: rgba(79, 70, 229, 0.35);
+}
