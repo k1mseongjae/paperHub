@@ -63,30 +63,52 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const fetchRootCategories = async () => {
     setLoadingCategories(true);
     try {
-      const resp = await axiosInstance.get('/api/categories/root', {
-        params: {
-          level: 'root',
-          withCounts: true,
-          page: 0,
-          size: 50,
-          sort: 'code,asc',
-        },
+      const resp = await axiosInstance.get('/api/paper-infos/categories/root', {
+        params: { page: 0, size: 50 },
       });
-
       if (resp.data?.success) {
         const rows = Array.isArray(resp.data.data?.content) ? resp.data.data.content : [];
-        setCategories(
-          rows.map((row: any) => ({
-            code: row.code,
-            name: row.name ?? row.code,
-            paperCount: row.paperCount ?? 0,
-            isExpanded: false,
-            isLoading: false,
-          }))
-        );
+        if (rows.length > 0) {
+          setCategories(
+            rows.map((row: any) => ({
+              code: row.code,
+              name: row.name ?? row.code,
+              paperCount: row.paperCount ?? 0,
+              isExpanded: false,
+              isLoading: false,
+            }))
+          );
+          return;
+        }
       }
+      throw new Error('paper_infos categories empty');
     } catch (error) {
-      console.error('Failed to fetch root categories', error);
+      console.warn('paper_infos root categories unavailable, fallback to /api/categories/root', error);
+      try {
+        const fallback = await axiosInstance.get('/api/categories/root', {
+          params: {
+            level: 'root',
+            withCounts: true,
+            page: 0,
+            size: 50,
+            sort: 'code,asc',
+          },
+        });
+        if (fallback.data?.success) {
+          const rows = Array.isArray(fallback.data.data?.content) ? fallback.data.data.content : [];
+          setCategories(
+            rows.map((row: any) => ({
+              code: row.code,
+              name: row.name ?? row.code,
+              paperCount: row.paperCount ?? 0,
+              isExpanded: false,
+              isLoading: false,
+            }))
+          );
+        }
+      } catch (fallbackErr) {
+        console.error('Failed to fetch fallback root categories', fallbackErr);
+      }
     } finally {
       setLoadingCategories(false);
     }
@@ -94,19 +116,39 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const fetchCategoryChildren = async (code: string) => {
     try {
-      const resp = await axiosInstance.get(`/api/categories/${code}/children`);
+      const resp = await axiosInstance.get(`/api/paper-infos/categories/${code}/children`, {
+        params: { page: 0, size: 100 },
+      });
       if (resp.data?.success) {
         const rows = Array.isArray(resp.data.data?.content) ? resp.data.data.content : resp.data.data ?? [];
-        return rows.map(
-          (row: any): CategoryNode => ({
-            code: row.code,
-            name: row.name ?? row.code,
-            paperCount: row.paperCount ?? 0,
-          })
-        );
+        if (rows.length > 0) {
+          return rows.map(
+            (row: any): CategoryNode => ({
+              code: row.code,
+              name: row.name ?? row.code,
+              paperCount: row.paperCount ?? 0,
+            })
+          );
+        }
       }
+      throw new Error('paper_infos children empty');
     } catch (error) {
-      console.error(`Failed to fetch children for category ${code}`, error);
+      console.warn(`paper_infos children unavailable for ${code}, fallback to /api/categories`, error);
+      try {
+        const fallback = await axiosInstance.get(`/api/categories/${code}/children`);
+        if (fallback.data?.success) {
+          const rows = Array.isArray(fallback.data.data?.content) ? fallback.data.data.content : fallback.data.data ?? [];
+          return rows.map(
+            (row: any): CategoryNode => ({
+              code: row.code,
+              name: row.name ?? row.code,
+              paperCount: row.paperCount ?? 0,
+            })
+          );
+        }
+      } catch (fallbackErr) {
+        console.error(`Failed to fetch fallback children for ${code}`, fallbackErr);
+      }
     }
     return [];
   };

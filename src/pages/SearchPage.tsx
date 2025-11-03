@@ -90,7 +90,10 @@ const SearchPage = () => {
       }
       const pdfBlob = await response.blob();
       const sanitizedTitle = paper.title.replace(/[\s/\\]+/g, '_').slice(0, 50) || 'paper';
-      const pdfFile = new File([pdfBlob], `${sanitizedTitle}.pdf`, { type: 'application/pdf' });
+      const arxivMatch = paper.id.match(/(\d{4}\.\d{4,5}(?:v\d+)?)/i);
+      const arxivId = arxivMatch ? arxivMatch[1] : '';
+      const filename = arxivId ? `${arxivId}.pdf` : `${sanitizedTitle}.pdf`;
+      const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
 
       const formData = new FormData();
       formData.append('file', pdfFile);
