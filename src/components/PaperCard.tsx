@@ -39,14 +39,20 @@ const PaperCard = ({
 
   const linkHref = paperId
     ? `/paper/${paperId}${collectionIdForRoute ? `?collectionId=${collectionIdForRoute}` : ''}`
-    : '#';
+    : undefined;
+
+  const TitleNode = paperId ? (
+    <Link to={linkHref!} className="hover:underline">
+      <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title || '제목 미상'}</h3>
+    </Link>
+  ) : (
+    <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title || '제목 미상'}</h3>
+  );
 
   return (
     <div key={id} className={containerClass}>
       <div className={metaWrapperClass}>
-        <Link to={linkHref} className="hover:underline">
-          <h3 className="text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1">{title || '제목 미상'}</h3>
-        </Link>
+        {TitleNode}
         {authorsLabel && (
           <p className="text-sm text-gray-600 mt-1">
             {authorsLabel}
