@@ -40,7 +40,7 @@ function App() {
       {/* 3. Protected Routes: 로그인해야만 접근 가능한 페이지들 */}
       <Route element={<ProtectedLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/collections" element={<MyPapersPage />} />
+        <Route path="/collections" element={<MyPapersPage variant="list" />} />
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/clustering" element={<ClusteringPage />} />

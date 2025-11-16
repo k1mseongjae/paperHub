@@ -98,7 +98,7 @@ const FavoritesPage: React.FC = () => {
         </p>
       )}
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="mt-4 flex flex-col gap-4">
         {papers.map((paper) => (
           <PaperCard
             key={paper.collectionId}
@@ -110,6 +110,7 @@ const FavoritesPage: React.FC = () => {
             publishedDate={paper.publishedDate}
             authors={parseJsonArraySafe(paper.authorsJson)}
             categories={parseJsonArraySafe(paper.categoriesJson)}
+            variant="list"
             collectionIdForRoute={paper.collectionId}
           />
         ))}
