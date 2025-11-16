@@ -63,6 +63,7 @@ const dedupePapers = (items: PaperListItem[]): PaperListItem[] => {
 
 const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [papers, setPapers] = useState<PaperListItem[]>([]);
+  const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
@@ -279,6 +280,29 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     };
   }, [papers, detailErrors, statusSegment]);
 
+  const sortedPapers = useMemo(() => {
+    const items = [...papers];
+    if (sortBy === 'title') {
+      items.sort((a, b) => {
+        const ta = (a.title ?? '').toLowerCase();
+        const tb = (b.title ?? '').toLowerCase();
+        if (!ta && !tb) return 0;
+        if (!ta) return 1;
+        if (!tb) return -1;
+        return ta.localeCompare(tb);
+      });
+    } else {
+      items.sort((a, b) => {
+        const da = a.updatedAt || a.addedAt || a.publishedDate || '';
+        const db = b.updatedAt || b.addedAt || b.publishedDate || '';
+        const va = da ? Date.parse(da) : 0;
+        const vb = db ? Date.parse(db) : 0;
+        return vb - va;
+      });
+    }
+    return items;
+  }, [papers, sortBy]);
+
   // 로딩 중일 때 보여줄 화면
   if (isLoading) {
     return <div className="p-6">Loading papers...</div>;
@@ -302,17 +326,21 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
           <p className="text-sm text-gray-500">{statusLabel}</p>
         </div>
         <div>
-          <select className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>Sort by Date</option>
-            <option>Sort by Title</option>
+          <select
+            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value === 'title' ? 'title' : 'date')}
+          >
+            <option value="date">Sort by Date</option>
+            <option value="title">Sort by Title</option>
           </select>
         </div>
       </div>
 
       {/* Paper List */}
       <div className={containerClass}>
-        {papers.length > 0 ? (
-          papers.map((paper) => (
+        {sortedPapers.length > 0 ? (
+          sortedPapers.map((paper) => (
             <PaperCard
               key={paper.id}
               id={paper.id}
