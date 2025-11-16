@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 import axiosInstance from '../api/axiosInstance.ts';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
+import { isFavoriteCollection, setFavoriteCollection } from '../state/favoritesStore';
 
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -200,9 +201,12 @@ const NoteViewerPage: React.FC = () => {
             }
             const favoriteFromTags = Boolean(
               info.favorite ??
-                (info.tags && typeof info.tags === 'object' ? (info.tags as Record<string, unknown>)['favorite'] : false)
+                (info.tags && typeof info.tags === 'object'
+                  ? (info.tags as Record<string, unknown>)['favorite']
+                  : false)
             );
-            setIsFavorite(favoriteFromTags);
+            const favoriteFromLocal = isFavoriteCollection(collectionId);
+            setIsFavorite(favoriteFromTags || favoriteFromLocal);
           }
         }
 
@@ -235,7 +239,8 @@ const NoteViewerPage: React.FC = () => {
           ? (collectionItem.tags as Record<string, unknown>)['favorite']
           : false)
     );
-    setIsFavorite(favoriteFromTags);
+    const favoriteFromLocal = isFavoriteCollection(collectionId);
+    setIsFavorite(favoriteFromTags || favoriteFromLocal);
   }, [collectionId, collectionItem]);
 
   const paperSha = paperDetail?.sha256;
@@ -420,15 +425,10 @@ const NoteViewerPage: React.FC = () => {
     if (favoriteUpdating) return;
     setFavoriteUpdating(true);
     try {
-      if (isFavorite) {
-        await axiosInstance.delete(`/api/collection-items/${collectionId}/favorite`);
-      } else {
-        await axiosInstance.post(`/api/collection-items/${collectionId}/favorite`, {});
-      }
-      setIsFavorite((prev) => !prev);
+      const nextFavorite = setFavoriteCollection(collectionId, !isFavorite);
+      setIsFavorite(nextFavorite);
       setCollectionItem((prev) => {
         if (!prev) return prev;
-        const nextFavorite = !isFavorite;
         const nextTags = {
           ...(prev.tags && typeof prev.tags === 'object' ? prev.tags : {}),
           favorite: nextFavorite,
@@ -610,9 +610,9 @@ const NoteViewerPage: React.FC = () => {
               </Document>
 
               <div className="pointer-events-none absolute inset-0">
-                {highlightLayers.map(({ rect, color, anchorId, highlightId }) => (
+                {highlightLayers.map(({ rect, color, anchorId, highlightId }, index) => (
                   <div
-                    key={`${anchorId}-${highlightId}-${rect.x}-${rect.y}-${rect.w}-${rect.h}`}
+                    key={`${anchorId}-${highlightId}-${index}`}
                     style={{
                       position: 'absolute',
                       left: `${rect.x * 100}%`,

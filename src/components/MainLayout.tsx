@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { useAuthStore } from '../state/authStore';
 import GlobalSearchBar from './GlobalSearchBar';
+import { getFavoriteCount } from '../state/favoritesStore';
 
 interface CollectionCounts {
   toRead: number;
@@ -36,6 +37,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(false); // hover-driven sidebar
 
   const fetchCollectionCounts = useCallback(async () => {
+    const favorites = getFavoriteCount();
     try {
       const resp = await axiosInstance.get('/api/collections/count');
       if (resp.data?.success) {
@@ -44,12 +46,17 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           toRead: counts.TO_READ ?? 0,
           inProgress: counts.IN_PROGRESS ?? 0,
           done: counts.DONE ?? 0,
-          favorites: counts.FAVORITES ?? 0,
+          favorites,
         });
+        return;
       }
     } catch (error) {
       console.error('Failed to fetch collection counts', error);
     }
+    setCollectionCounts((prev) => ({
+      ...prev,
+      favorites,
+    }));
   }, []);
 
   useEffect(() => {
