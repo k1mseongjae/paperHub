@@ -411,6 +411,18 @@ const NoteViewerPage: React.FC = () => {
     }
   }, [selectionDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
 
+  const handleDeleteHighlight = useCallback(async (highlightId: number) => {
+    if (!confirm('하이라이트를 삭제하시겠습니까?')) return;
+    try {
+      await axiosInstance.delete(`/api/highlights/${highlightId}`);
+      setSelectedAnchorId(null);
+      fetchAnnotations(currentPage);
+    } catch (e) {
+      console.error(e);
+      alert('하이라이트 삭제 실패');
+    }
+  }, [currentPage, fetchAnnotations]);
+
   const handleAddMemo = useCallback(async () => {
     if (!selectedAnchorId) {
       alert('먼저 하이라이트를 선택해주세요.');
@@ -532,6 +544,7 @@ const NoteViewerPage: React.FC = () => {
         <div className="p-4 space-y-4">
           {annotations?.items.map((item) => {
             const color = item.highlights[0]?.color || DEFAULT_HIGHLIGHT_COLOR;
+            const highlightId = item.highlights[0]?.id;
             const isActive = selectedAnchorId === item.anchor.id;
             return (
               <div
@@ -543,7 +556,20 @@ const NoteViewerPage: React.FC = () => {
                   onClick={() => setSelectedAnchorId(item.anchor.id)}
                   className="w-full text-left p-4"
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Highlight</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Highlight</div>
+                    {isActive && highlightId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteHighlight(highlightId);
+                        }}
+                        className="text-xs text-red-500 hover:text-red-700 hover:underline"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
                   <div
                     className="mt-2 rounded-md p-3 text-sm"
                     style={{ backgroundColor: colorToRgba(color, 0.4) }}
