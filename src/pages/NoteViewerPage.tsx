@@ -5,6 +5,9 @@ import axiosInstance from '../api/axiosInstance.ts';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import { isFavoriteCollection, setFavoriteCollection } from '../state/favoritesStore';
 
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 type ReadingStatus = 'TO_READ' | 'IN_PROGRESS' | 'DONE';
@@ -645,7 +648,7 @@ const NoteViewerPage: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
           <div className="mx-auto max-w-4xl">
-            <div className="relative" ref={pageContainerRef}>
+            <div className="relative w-fit" ref={pageContainerRef}>
               <Document file={pdfUrl} onLoadSuccess={(info) => setNumPages(info.numPages)} loading={<p className="p-4 text-gray-500">PDF 불러오는 중...</p>}>
                 <Page
                   pageNumber={currentPage}
@@ -668,7 +671,7 @@ const NoteViewerPage: React.FC = () => {
                       backgroundColor: colorToRgba(color),
                       borderRadius: '4px',
                     }}
-                    className="pointer-events-auto"
+                    className="pointer-events-auto cursor-pointer hover:opacity-80"
                     onClick={() => setSelectedAnchorId(anchorId)}
                   />
                 ))}
@@ -681,7 +684,7 @@ const NoteViewerPage: React.FC = () => {
                     left: Math.min(selectionDraft.toolbar.x, (pageContainerRef.current?.clientWidth ?? 0) - 160),
                     top: selectionDraft.toolbar.y,
                   }}
-                  className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md"
+                  className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md z-50"
                 >
                   <span className="text-xs text-gray-500 mr-2">선택 영역</span>
                   <button
@@ -711,8 +714,8 @@ const NoteViewerPage: React.FC = () => {
                 onClick={handleToggleFavorite}
                 disabled={favoriteUpdating}
                 className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold shadow-lg transition ${isFavorite
-                    ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
+                  ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
                   } ${favoriteUpdating ? 'opacity-80 cursor-wait' : ''}`}
               >
                 <span className="text-base">{isFavorite ? '★' : '☆'}</span>
