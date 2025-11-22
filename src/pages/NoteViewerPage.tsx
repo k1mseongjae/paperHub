@@ -87,28 +87,28 @@ const STATUS_OPTIONS: Array<{
   description: string;
   badgeClass: string;
 }> = [
-  {
-    status: 'TO_READ',
-    slug: 'to-read',
-    label: '읽을 예정',
-    description: '나중에 읽을 목록에 보관합니다.',
-    badgeClass: 'bg-sky-100 text-sky-700',
-  },
-  {
-    status: 'IN_PROGRESS',
-    slug: 'in-progress',
-    label: '읽는 중',
-    description: '지금 읽고 있는 논문입니다.',
-    badgeClass: 'bg-amber-100 text-amber-700',
-  },
-  {
-    status: 'DONE',
-    slug: 'done',
-    label: '완료됨',
-    description: '읽기를 마친 논문입니다.',
-    badgeClass: 'bg-emerald-100 text-emerald-700',
-  },
-];
+    {
+      status: 'TO_READ',
+      slug: 'to-read',
+      label: '읽을 예정',
+      description: '나중에 읽을 목록에 보관합니다.',
+      badgeClass: 'bg-sky-100 text-sky-700',
+    },
+    {
+      status: 'IN_PROGRESS',
+      slug: 'in-progress',
+      label: '읽는 중',
+      description: '지금 읽고 있는 논문입니다.',
+      badgeClass: 'bg-amber-100 text-amber-700',
+    },
+    {
+      status: 'DONE',
+      slug: 'done',
+      label: '완료됨',
+      description: '읽기를 마친 논문입니다.',
+      badgeClass: 'bg-emerald-100 text-emerald-700',
+    },
+  ];
 
 const colorToRgba = (hex: string, alpha = 0.35) => {
   const cleaned = hex.replace('#', '');
@@ -201,9 +201,9 @@ const NoteViewerPage: React.FC = () => {
             }
             const favoriteFromTags = Boolean(
               info.favorite ??
-                (info.tags && typeof info.tags === 'object'
-                  ? (info.tags as Record<string, unknown>)['favorite']
-                  : false)
+              (info.tags && typeof info.tags === 'object'
+                ? (info.tags as Record<string, unknown>)['favorite']
+                : false)
             );
             const favoriteFromLocal = isFavoriteCollection(collectionId);
             setIsFavorite(favoriteFromTags || favoriteFromLocal);
@@ -235,15 +235,61 @@ const NoteViewerPage: React.FC = () => {
     setCollectionStatus(collectionItem?.status ?? null);
     const favoriteFromTags = Boolean(
       collectionItem?.favorite ??
-        (collectionItem?.tags && typeof collectionItem.tags === 'object'
-          ? (collectionItem.tags as Record<string, unknown>)['favorite']
-          : false)
+      (collectionItem?.tags && typeof collectionItem.tags === 'object'
+        ? (collectionItem.tags as Record<string, unknown>)['favorite']
+        : false)
     );
     const favoriteFromLocal = isFavoriteCollection(collectionId);
     setIsFavorite(favoriteFromTags || favoriteFromLocal);
   }, [collectionId, collectionItem]);
 
   const paperSha = paperDetail?.sha256;
+
+  // --- Session Tracking Refs ---
+  const mountTimeRef = useRef<number>(Date.now());
+  const maxPageRef = useRef<number>(1);
+  const lastPageRef = useRef<number>(1);
+
+  // Update refs when page changes
+  useEffect(() => {
+    lastPageRef.current = currentPage;
+    if (currentPage > maxPageRef.current) {
+      maxPageRef.current = currentPage;
+    }
+  }, [currentPage]);
+
+  // Send session data on unmount
+  useEffect(() => {
+    // Reset mount time when paperId changes (new session)
+    mountTimeRef.current = Date.now();
+    maxPageRef.current = 1;
+    lastPageRef.current = 1;
+
+    return () => {
+      if (!paperId) return;
+
+      const sessionSeconds = Math.floor((Date.now() - mountTimeRef.current) / 1000);
+      const data = {
+        sessionSeconds,
+        lastPage: lastPageRef.current,
+        maxPage: maxPageRef.current,
+        pageCount: numPages,
+      };
+
+      // Use sendBeacon for reliable transmission on unmount
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const url = `/api/papers/${paperId}/sessions`;
+
+      // Try sendBeacon first
+      const success = navigator.sendBeacon(url, blob);
+
+      // Fallback logging (optional, mostly for debugging)
+      if (!success) {
+        console.warn('Failed to queue session data with sendBeacon');
+      }
+    };
+  }, [paperId, numPages]);
+  // -----------------------------
 
   const fetchAnnotations = useCallback(async (page: number) => {
     if (!paperSha) return;
@@ -664,11 +710,10 @@ const NoteViewerPage: React.FC = () => {
                 type="button"
                 onClick={handleToggleFavorite}
                 disabled={favoriteUpdating}
-                className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold shadow-lg transition ${
-                  isFavorite
+                className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold shadow-lg transition ${isFavorite
                     ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
                     : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
-                } ${favoriteUpdating ? 'opacity-80 cursor-wait' : ''}`}
+                  } ${favoriteUpdating ? 'opacity-80 cursor-wait' : ''}`}
               >
                 <span className="text-base">{isFavorite ? '★' : '☆'}</span>
                 <span>즐겨찾기</span>
@@ -697,9 +742,8 @@ const NoteViewerPage: React.FC = () => {
                         type="button"
                         onClick={() => handleChangeStatus(option.slug)}
                         disabled={statusUpdating || isActive}
-                        className={`w-full px-4 py-3 text-left text-sm transition ${
-                          isActive ? 'bg-indigo-50 font-semibold text-indigo-700' : 'hover:bg-gray-50'
-                        } ${statusUpdating ? 'cursor-wait' : ''}`}
+                        className={`w-full px-4 py-3 text-left text-sm transition ${isActive ? 'bg-indigo-50 font-semibold text-indigo-700' : 'hover:bg-gray-50'
+                          } ${statusUpdating ? 'cursor-wait' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <span>{option.label}</span>
