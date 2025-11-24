@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.tsx';
-import SignupPage from './pages/SignupPage.tsx'; 
+import SignupPage from './pages/SignupPage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import MyPapersPage from './pages/MyPapersPage.tsx';
 import SearchPage from './pages/SearchPage.tsx';

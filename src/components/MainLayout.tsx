@@ -173,10 +173,10 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       prev.map((cat) =>
         cat.code === code
           ? {
-              ...cat,
-              isExpanded: !cat.isExpanded,
-              isLoading: !cat.isExpanded && !cat.children,
-            }
+            ...cat,
+            isExpanded: !cat.isExpanded,
+            isLoading: !cat.isExpanded && !cat.children,
+          }
           : cat
       )
     );
@@ -189,11 +189,11 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       prev.map((cat) =>
         cat.code === code
           ? {
-              ...cat,
-              isExpanded: true,
-              isLoading: false,
-              children,
-            }
+            ...cat,
+            isExpanded: true,
+            isLoading: false,
+            children,
+          }
           : cat
       )
     );
@@ -245,9 +245,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       <aside
-        className={`flex flex-col border-r border-gray-100 bg-white py-8 shadow-lg overflow-hidden transition-[width] duration-200 ease-out ${
-          isSidebarOpen ? 'w-80 px-6' : 'w-16 px-2'
-        }`}
+        className={`flex flex-col border-r border-gray-100 bg-white py-8 shadow-lg overflow-hidden transition-[width] duration-200 ease-out ${isSidebarOpen ? 'w-80 px-6' : 'w-16 px-2'
+          }`}
         onMouseEnter={() => setSidebarOpen(true)}
         onMouseLeave={() => setSidebarOpen(false)}
         style={{ willChange: 'width' }}
@@ -276,9 +275,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pr-1">
           <section>
-            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${
-              isSidebarOpen ? 'opacity-100' : 'opacity-0'
-            }`}>내 컬렉션</p>
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+              }`}>내 컬렉션</p>
             <ul className="space-y-1">
               {collectionLinks.map((link) => (
                 <li key={link.label}>
@@ -289,9 +287,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     title={isSidebarOpen ? undefined : link.label}
                   >
                     <span
-                      className={`whitespace-nowrap transition-opacity duration-150 ${
-                        isSidebarOpen ? 'opacity-100' : 'opacity-0'
-                      }`}
+                      className={`whitespace-nowrap transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+                        }`}
                       aria-hidden={!isSidebarOpen}
                     >
                       {link.label}
@@ -304,9 +301,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </section>
 
           <section>
-            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${
-              isSidebarOpen ? 'opacity-100' : 'opacity-0'
-            }`}>arXiv 카테고리</p>
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+              }`}>arXiv 카테고리</p>
             {loadingCategories && isSidebarOpen && (
               <p className="px-4 py-2 text-xs text-gray-400">카테고리 로딩 중...</p>
             )}
@@ -326,9 +322,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       >
                         <span className="flex items-center gap-2 overflow-hidden">
                           <span
-                            className={`whitespace-nowrap transition-opacity duration-150 ${
-                              isSidebarOpen ? 'opacity-100' : 'opacity-0'
-                            }`}
+                            className={`whitespace-nowrap transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+                              }`}
                             aria-hidden={!isSidebarOpen}
                           >
                             {category.name}
@@ -351,9 +346,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                                 key={child.code}
                                 type="button"
                                 onClick={() => navigate(`/category/${child.code}`)}
-                                className={`${itemClass} ${
-                                  isActiveChild ? activeItemClass : defaultItemClass
-                                }`}
+                                className={`${itemClass} ${isActiveChild ? activeItemClass : defaultItemClass
+                                  }`}
                               >
                                 <span>{child.name}</span>
                                 {badge(child.paperCount)}
