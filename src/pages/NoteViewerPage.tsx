@@ -4,7 +4,6 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import axiosInstance from '../api/axiosInstance.ts';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import { useAuthStore } from '../state/authStore';
-import { isFavoriteCollection, setFavoriteCollection } from '../state/favoritesStore';
 
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
@@ -223,8 +222,6 @@ const NoteViewerPage: React.FC = () => {
   const [collectionStatus, setCollectionStatus] = useState<ReadingStatus | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [favoriteUpdating, setFavoriteUpdating] = useState(false);
 
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
@@ -270,20 +267,9 @@ const NoteViewerPage: React.FC = () => {
             const info = resp.data.data as CollectionItemDetail;
             setCollectionItem(info);
             setTitle(info.title ?? '제목 미상');
-            if (info.pdfUrl) {
-              setPdfUrl(info.pdfUrl);
-            }
             if (info.status) {
               setCollectionStatus(info.status);
             }
-            const favoriteFromTags = Boolean(
-              info.favorite ??
-              (info.tags && typeof info.tags === 'object'
-                ? (info.tags as Record<string, unknown>)['favorite']
-                : false)
-            );
-            const favoriteFromLocal = isFavoriteCollection(collectionId);
-            setIsFavorite(favoriteFromTags || favoriteFromLocal);
           }
         }
 
@@ -292,6 +278,8 @@ const NoteViewerPage: React.FC = () => {
           const data = paperResp.data.data as PaperViewDetail;
           setPaperDetail(data);
           setNumPages(data.numPages ?? 1);
+          // 뷰어는 항상 백엔드 파일 엔드포인트를 사용해 CORS를 피합니다.
+          setPdfUrl(`/api/papers/${paperId}/file`);
         }
       } catch (e) {
         console.error(e);
@@ -305,19 +293,9 @@ const NoteViewerPage: React.FC = () => {
   useEffect(() => {
     if (!collectionId) {
       setCollectionStatus(null);
-      setIsFavorite(false);
-      setFavoriteUpdating(false);
       return;
     }
     setCollectionStatus(collectionItem?.status ?? null);
-    const favoriteFromTags = Boolean(
-      collectionItem?.favorite ??
-      (collectionItem?.tags && typeof collectionItem.tags === 'object'
-        ? (collectionItem.tags as Record<string, unknown>)['favorite']
-        : false)
-    );
-    const favoriteFromLocal = isFavoriteCollection(collectionId);
-    setIsFavorite(favoriteFromTags || favoriteFromLocal);
   }, [collectionId, collectionItem]);
 
   const paperSha = paperDetail?.sha256;
@@ -593,34 +571,6 @@ const NoteViewerPage: React.FC = () => {
     [collectionId, statusUpdating]
   );
 
-  const handleToggleFavorite = useCallback(async () => {
-    if (!collectionId) {
-      alert('내 서재에 추가된 논문만 즐겨찾기 할 수 있습니다.');
-      return;
-    }
-
-    if (favoriteUpdating) return;
-    setFavoriteUpdating(true);
-    try {
-      const nextFavorite = setFavoriteCollection(collectionId, !isFavorite);
-      setIsFavorite(nextFavorite);
-      setCollectionItem((prev) => {
-        if (!prev) return prev;
-        const nextTags = {
-          ...(prev.tags && typeof prev.tags === 'object' ? prev.tags : {}),
-          favorite: nextFavorite,
-        } as Record<string, unknown>;
-        return { ...prev, favorite: nextFavorite, tags: nextTags };
-      });
-      window.dispatchEvent(new Event('collection:refresh'));
-    } catch (e) {
-      console.error(e);
-      alert('즐겨찾기 상태를 변경하지 못했습니다.');
-    } finally {
-      setFavoriteUpdating(false);
-    }
-  }, [collectionId, isFavorite, favoriteUpdating]);
-
   useEffect(() => {
     setMemoDraft('');
   }, [selectedAnchorId]);
@@ -855,18 +805,6 @@ const NoteViewerPage: React.FC = () => {
         <div className="fixed bottom-8 right-8 z-40">
           <div ref={statusMenuRef} className="relative">
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleToggleFavorite}
-                disabled={favoriteUpdating}
-                className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold shadow-lg transition ${isFavorite
-                  ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
-                  } ${favoriteUpdating ? 'opacity-80 cursor-wait' : ''}`}
-              >
-                <span className="text-base">{isFavorite ? '★' : '☆'}</span>
-                <span>즐겨찾기</span>
-              </button>
               <button
                 type="button"
                 onClick={() => setStatusMenuOpen((prev) => !prev)}

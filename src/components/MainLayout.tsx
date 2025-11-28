@@ -3,13 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { useAuthStore } from '../state/authStore';
 import GlobalSearchBar from './GlobalSearchBar';
-import { getFavoriteCount } from '../state/favoritesStore';
-
 interface CollectionCounts {
   toRead: number;
   inProgress: number;
   done: number;
-  favorites: number;
 }
 
 interface CategoryNode {
@@ -30,14 +27,12 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     toRead: 0,
     inProgress: 0,
     done: 0,
-    favorites: 0,
   });
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [isSidebarOpen, setSidebarOpen] = useState(false); // hover-driven sidebar
 
   const fetchCollectionCounts = useCallback(async () => {
-    const favorites = getFavoriteCount();
     try {
       const resp = await axiosInstance.get('/api/collections/count');
       if (resp.data?.success) {
@@ -46,17 +41,12 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           toRead: counts.TO_READ ?? 0,
           inProgress: counts.IN_PROGRESS ?? 0,
           done: counts.DONE ?? 0,
-          favorites,
         });
         return;
       }
     } catch (error) {
       console.error('Failed to fetch collection counts', error);
     }
-    setCollectionCounts((prev) => ({
-      ...prev,
-      favorites,
-    }));
   }, []);
 
   useEffect(() => {
@@ -206,12 +196,6 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const collectionLinks = useMemo(
     () => [
-      {
-        label: '즐겨찾기',
-        to: '/favorites',
-        badge: collectionCounts.favorites,
-        active: location.pathname === '/favorites',
-      },
       {
         label: '읽을 예정',
         to: '/collections?status=to-read',

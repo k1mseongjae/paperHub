@@ -10,7 +10,6 @@ import WelcomePage from './pages/WelcomePage.tsx';
 import AuthGuard from './components/AuthGuard.tsx';
 import MainLayout from './components/MainLayout.tsx';
 import { useAuthStore } from './state/authStore.ts';
-import FavoritesPage from './pages/FavoritesPage.tsx';
 import CategoryPapersPage from './pages/CategoryPapersPage.tsx';
 
 const ProtectedLayout = () => (
@@ -41,7 +40,6 @@ function App() {
       <Route element={<ProtectedLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/collections" element={<MyPapersPage variant="list" />} />
-        <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/clustering" element={<ClusteringPage />} />
         <Route path="/category/:code" element={<CategoryPapersPage />} />

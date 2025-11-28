@@ -1,43 +1,9 @@
-import React, { useState } from 'react';
-import axiosInstance from '../api/axiosInstance.ts';
+import { useState } from 'react';
 import MyPapersPage from './MyPapersPage.tsx';
 import ClusteringPage from './ClusteringPage.tsx';
 
 const DashboardPage = () => {
-  const [file, setFile] = useState<File | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      alert('파일을 선택해주세요.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('sourceId', 'temp-source-id'); 
-    formData.append('uploaderId', 'temp-uploader-id');
-
-    try {
-      const response = await axiosInstance.post('/api/papers/register-from-url', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      console.log('Upload success:', response.data);
-      alert('논문이 성공적으로 업로드되었습니다.');
-      setFile(null);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert('업로드에 실패했습니다.');
-    }
-  };
 
   // ui 전환
   const renderViewSwitcher = () => (
@@ -96,29 +62,6 @@ const DashboardPage = () => {
       </div>
 
       {renderViewContent()}
-
-      {/* Upload Section (Footer) */}
-      <div className="mt-10 p-6 bg-white rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-700">Upload New Paper</h3>
-        <div className="mt-4">
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileChange}
-            className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          />
-          {file && <span className="ml-4 text-gray-600">{file.name}</span>}
-        </div>
-        <div className="mt-4">
-          <button
-            onClick={handleUpload}
-            className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
-            disabled={!file}
-          >
-            Upload
-          </button>
-        </div>
-      </div>
     </>
   );
 };
