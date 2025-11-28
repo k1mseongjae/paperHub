@@ -5,6 +5,9 @@ import axiosInstance from '../api/axiosInstance.ts';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 import { isFavoriteCollection, setFavoriteCollection } from '../state/favoritesStore';
 
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 type ReadingStatus = 'TO_READ' | 'IN_PROGRESS' | 'DONE';
@@ -125,6 +128,78 @@ const colorToRgba = (hex: string, alpha = 0.35) => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   return `rgba(253, 224, 71, ${alpha})`;
+};
+
+const MemoItem: React.FC<{
+  memo: AnnotationMemo;
+  onEdit: (id: number, newBody: string) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
+}> = ({ memo, onEdit, onDelete }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editBody, setEditBody] = useState(memo.body);
+
+  const handleSave = async () => {
+    if (editBody.trim() === '') return;
+    await onEdit(memo.id, editBody);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="rounded-md bg-white p-3 text-sm text-gray-700 shadow ring-2 ring-indigo-100">
+        <textarea
+          className="w-full rounded-md border border-gray-200 px-2 py-1 text-sm focus:border-indigo-400 focus:outline-none"
+          rows={3}
+          value={editBody}
+          onChange={(e) => setEditBody(e.target.value)}
+        />
+        <div className="mt-2 flex justify-end gap-2">
+          <button
+            onClick={() => setIsEditing(false)}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSave}
+            className="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative rounded-md bg-white p-3 text-sm text-gray-700 shadow hover:bg-gray-50">
+      <div className="whitespace-pre-wrap leading-relaxed">{memo.body}</div>
+      <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+        <span>작성자: {memo.createdBy ?? '나'}</span>
+        <div className="hidden gap-2 group-hover:flex">
+          <button
+            onClick={() => {
+              setEditBody(memo.body);
+              setIsEditing(true);
+            }}
+            className="text-indigo-500 hover:text-indigo-700"
+          >
+            수정
+          </button>
+          <button
+            onClick={() => {
+              if (confirm('메모를 삭제하시겠습니까?')) {
+                onDelete(memo.id);
+              }
+            }}
+            className="text-red-500 hover:text-red-700"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const NoteViewerPage: React.FC = () => {
@@ -408,6 +483,43 @@ const NoteViewerPage: React.FC = () => {
     }
   }, [selectionDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
 
+  const handleCreateMemoFromSelection = useCallback(async () => {
+    if (!selectionDraft || !paperSha) return;
+
+    try {
+      // Reverted: Create a visible highlight instead of an invisible anchor
+      const resp = await axiosInstance.post('/api/highlights', {
+        paperSha256: paperSha,
+        page: currentPage,
+        rects: selectionDraft.rects,
+        exact: selectionDraft.text,
+        color: DEFAULT_HIGHLIGHT_COLOR,
+      });
+      clearSelection();
+      await fetchAnnotations(currentPage);
+
+      if (resp.data.success) {
+        const data = resp.data.data as { anchorId: number };
+        setSelectedAnchorId(data.anchorId);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('하이라이트(메모용)를 생성하지 못했습니다.');
+    }
+  }, [selectionDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
+
+  const handleDeleteHighlight = useCallback(async (highlightId: number) => {
+    if (!confirm('하이라이트를 삭제하시겠습니까?')) return;
+    try {
+      await axiosInstance.delete(`/api/highlights/${highlightId}`);
+      setSelectedAnchorId(null);
+      fetchAnnotations(currentPage);
+    } catch (e) {
+      console.error(e);
+      alert('하이라이트 삭제 실패');
+    }
+  }, [currentPage, fetchAnnotations]);
+
   const handleAddMemo = useCallback(async () => {
     if (!selectedAnchorId) {
       alert('먼저 하이라이트를 선택해주세요.');
@@ -430,6 +542,26 @@ const NoteViewerPage: React.FC = () => {
       alert('메모를 저장하지 못했습니다.');
     }
   }, [selectedAnchorId, memoDraft, currentPage, fetchAnnotations]);
+
+  const handleEditMemo = useCallback(async (id: number, newBody: string) => {
+    try {
+      await axiosInstance.patch(`/api/memos/${id}`, { body: newBody });
+      await fetchAnnotations(currentPage);
+    } catch (e) {
+      console.error(e);
+      alert('메모 수정 실패');
+    }
+  }, [currentPage, fetchAnnotations]);
+
+  const handleDeleteMemo = useCallback(async (id: number) => {
+    try {
+      await axiosInstance.delete(`/api/memos/${id}`);
+      await fetchAnnotations(currentPage);
+    } catch (e) {
+      console.error(e);
+      alert('메모 삭제 실패');
+    }
+  }, [currentPage, fetchAnnotations]);
 
   const handleChangeStatus = useCallback(
     async (slug: 'to-read' | 'in-progress' | 'done') => {
@@ -527,62 +659,80 @@ const NoteViewerPage: React.FC = () => {
           <p className="p-4 text-sm text-gray-500">이 페이지에는 아직 하이라이트가 없습니다.</p>
         )}
         <div className="p-4 space-y-4">
-          {annotations?.items.map((item) => {
-            const color = item.highlights[0]?.color || DEFAULT_HIGHLIGHT_COLOR;
-            const isActive = selectedAnchorId === item.anchor.id;
-            return (
-              <div
-                key={item.anchor.id}
-                className={`rounded-lg border ${isActive ? 'border-indigo-400' : 'border-gray-200'} bg-white shadow-sm`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedAnchorId(item.anchor.id)}
-                  className="w-full text-left p-4"
+          {annotations?.items
+            .filter(item => item.highlights.length > 0 || item.notes.length > 0)
+            .map((item) => {
+              const color = item.highlights[0]?.color || DEFAULT_HIGHLIGHT_COLOR;
+              const highlightId = item.highlights[0]?.id;
+              const isActive = selectedAnchorId === item.anchor.id;
+              return (
+                <div
+                  key={item.anchor.id}
+                  className={`rounded-lg border ${isActive ? 'border-indigo-400' : 'border-gray-200'} bg-white shadow-sm`}
                 >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Highlight</div>
-                  <div
-                    className="mt-2 rounded-md p-3 text-sm"
-                    style={{ backgroundColor: colorToRgba(color, 0.4) }}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAnchorId(item.anchor.id)}
+                    className="w-full text-left p-4"
                   >
-                    {item.anchor.exact || '(텍스트 없음)'}
-                  </div>
-                  <div className="mt-3 text-xs text-gray-500">노트 {item.notes.length}개</div>
-                </button>
-                {isActive && (
-                  <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-3">
-                    <div className="space-y-2">
-                      {item.notes.length === 0 && (
-                        <p className="text-xs text-gray-500">아직 메모가 없습니다.</p>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Highlight</div>
+                      {isActive && highlightId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteHighlight(highlightId);
+                          }}
+                          className="text-xs text-red-500 hover:text-red-700 hover:underline"
+                        >
+                          삭제
+                        </button>
                       )}
-                      {item.notes.map((memo) => (
-                        <div key={memo.id} className="rounded-md bg-white p-3 text-sm text-gray-700 shadow">
-                          <div className="whitespace-pre-wrap leading-relaxed">{memo.body}</div>
-                          <div className="mt-2 text-xs text-gray-400">작성자: {memo.createdBy ?? '나'}</div>
-                        </div>
-                      ))}
                     </div>
-                    <div>
-                      <textarea
-                        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                        rows={3}
-                        placeholder="메모를 입력하세요"
-                        value={memoDraft}
-                        onChange={(e) => setMemoDraft(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddMemo}
-                        className="mt-2 inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
-                      >
-                        메모 추가
-                      </button>
+                    <div
+                      className="mt-2 rounded-md p-3 text-sm"
+                      style={{ backgroundColor: colorToRgba(color, 0.4) }}
+                    >
+                      {item.anchor.exact || '(텍스트 없음)'}
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    <div className="mt-3 text-xs text-gray-500">노트 {item.notes.length}개</div>
+                  </button>
+                  {isActive && (
+                    <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-3">
+                      <div className="space-y-2">
+                        {item.notes.length === 0 && (
+                          <p className="text-xs text-gray-500">아직 메모가 없습니다.</p>
+                        )}
+                        {item.notes.map((memo) => (
+                          <MemoItem
+                            key={memo.id}
+                            memo={memo}
+                            onEdit={handleEditMemo}
+                            onDelete={handleDeleteMemo}
+                          />
+                        ))}
+                      </div>
+                      <div>
+                        <textarea
+                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                          rows={3}
+                          placeholder="메모를 입력하세요"
+                          value={memoDraft}
+                          onChange={(e) => setMemoDraft(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddMemo}
+                          className="mt-2 inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                        >
+                          메모 추가
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
         </div>
       </div>
     </aside>
@@ -645,7 +795,7 @@ const NoteViewerPage: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
           <div className="mx-auto max-w-4xl">
-            <div className="relative" ref={pageContainerRef}>
+            <div className="relative w-fit" ref={pageContainerRef}>
               <Document file={pdfUrl} onLoadSuccess={(info) => setNumPages(info.numPages)} loading={<p className="p-4 text-gray-500">PDF 불러오는 중...</p>}>
                 <Page
                   pageNumber={currentPage}
@@ -668,7 +818,7 @@ const NoteViewerPage: React.FC = () => {
                       backgroundColor: colorToRgba(color),
                       borderRadius: '4px',
                     }}
-                    className="pointer-events-auto"
+                    className="pointer-events-auto cursor-pointer hover:opacity-80"
                     onClick={() => setSelectedAnchorId(anchorId)}
                   />
                 ))}
@@ -681,7 +831,7 @@ const NoteViewerPage: React.FC = () => {
                     left: Math.min(selectionDraft.toolbar.x, (pageContainerRef.current?.clientWidth ?? 0) - 160),
                     top: selectionDraft.toolbar.y,
                   }}
-                  className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md"
+                  className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm shadow-md z-50"
                 >
                   <span className="text-xs text-gray-500 mr-2">선택 영역</span>
                   <button
@@ -711,8 +861,8 @@ const NoteViewerPage: React.FC = () => {
                 onClick={handleToggleFavorite}
                 disabled={favoriteUpdating}
                 className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold shadow-lg transition ${isFavorite
-                    ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
+                  ? 'bg-yellow-100 border-yellow-200 text-yellow-700 hover:bg-yellow-200'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
                   } ${favoriteUpdating ? 'opacity-80 cursor-wait' : ''}`}
               >
                 <span className="text-base">{isFavorite ? '★' : '☆'}</span>
