@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 import axiosInstance from '../api/axiosInstance.ts';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
+import { useAuthStore } from '../state/authStore';
 import { isFavoriteCollection, setFavoriteCollection } from '../state/favoritesStore';
 
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -227,6 +228,7 @@ const NoteViewerPage: React.FC = () => {
 
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
+  const token = useAuthStore((state) => state.token);
 
   const paperId = useMemo(() => {
     if (!paperIdParam) return null;
@@ -319,6 +321,17 @@ const NoteViewerPage: React.FC = () => {
   }, [collectionId, collectionItem]);
 
   const paperSha = paperDetail?.sha256;
+  const documentFile = useMemo(() => {
+    if (!pdfUrl) return null;
+    if (!token) return pdfUrl;
+    return {
+      url: pdfUrl,
+      httpHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+      withCredentials: true,
+    };
+  }, [pdfUrl, token]);
 
   // --- Session Tracking Refs ---
   const mountTimeRef = useRef<number>(Date.now());
@@ -351,19 +364,30 @@ const NoteViewerPage: React.FC = () => {
         pageCount: numPages,
       };
 
-      // Use sendBeacon for reliable transmission on unmount
-      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
       const url = `/api/papers/${paperId}/sessions`;
+      const payload = JSON.stringify(data);
 
-      // Try sendBeacon first
-      const success = navigator.sendBeacon(url, blob);
-
-      // Fallback logging (optional, mostly for debugging)
-      if (!success) {
-        console.warn('Failed to queue session data with sendBeacon');
+      if (token) {
+        // Use fetch with keepalive so we can include the auth header
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: payload,
+          keepalive: true,
+        }).catch((err) => console.warn('Failed to send session data', err));
+      } else {
+        // Fallback for unauthenticated state
+        const blob = new Blob([payload], { type: 'application/json' });
+        const success = navigator.sendBeacon(url, blob);
+        if (!success) {
+          console.warn('Failed to queue session data with sendBeacon');
+        }
       }
     };
-  }, [paperId, numPages]);
+  }, [paperId, numPages, token]);
   // -----------------------------
 
   const fetchAnnotations = useCallback(async (page: number) => {
@@ -480,31 +504,6 @@ const NoteViewerPage: React.FC = () => {
     } catch (e) {
       console.error(e);
       alert('하이라이트를 저장하지 못했습니다.');
-    }
-  }, [selectionDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
-
-  const handleCreateMemoFromSelection = useCallback(async () => {
-    if (!selectionDraft || !paperSha) return;
-
-    try {
-      // Reverted: Create a visible highlight instead of an invisible anchor
-      const resp = await axiosInstance.post('/api/highlights', {
-        paperSha256: paperSha,
-        page: currentPage,
-        rects: selectionDraft.rects,
-        exact: selectionDraft.text,
-        color: DEFAULT_HIGHLIGHT_COLOR,
-      });
-      clearSelection();
-      await fetchAnnotations(currentPage);
-
-      if (resp.data.success) {
-        const data = resp.data.data as { anchorId: number };
-        setSelectedAnchorId(data.anchorId);
-      }
-    } catch (e) {
-      console.error(e);
-      alert('하이라이트(메모용)를 생성하지 못했습니다.');
     }
   }, [selectionDraft, paperSha, currentPage, clearSelection, fetchAnnotations]);
 
@@ -753,7 +752,7 @@ const NoteViewerPage: React.FC = () => {
     );
   }
 
-  if (!pdfUrl) {
+  if (!documentFile) {
     return (
       <div className="p-8">
         <h2 className="text-xl font-semibold text-gray-800">PDF를 찾을 수 없습니다.</h2>
@@ -796,7 +795,7 @@ const NoteViewerPage: React.FC = () => {
         <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
           <div className="mx-auto max-w-4xl">
             <div className="relative w-fit" ref={pageContainerRef}>
-              <Document file={pdfUrl} onLoadSuccess={(info) => setNumPages(info.numPages)} loading={<p className="p-4 text-gray-500">PDF 불러오는 중...</p>}>
+              <Document file={documentFile} onLoadSuccess={(info) => setNumPages(info.numPages)} loading={<p className="p-4 text-gray-500">PDF 불러오는 중...</p>}>
                 <Page
                   pageNumber={currentPage}
                   width={880}
