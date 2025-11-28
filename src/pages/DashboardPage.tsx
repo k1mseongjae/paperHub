@@ -11,22 +11,20 @@ const DashboardPage = () => {
       <button
         type="button"
         onClick={() => setViewMode('list')}
-        className={`px-4 py-2 text-sm font-medium transition-colors ${
-          viewMode === 'list'
+        className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'list'
             ? 'bg-indigo-600 text-white'
             : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-        }`}
+          }`}
       >
         목록
       </button>
       <button
         type="button"
         onClick={() => setViewMode('graph')}
-        className={`px-4 py-2 text-sm font-medium transition-colors border-l border-indigo-100 ${
-          viewMode === 'graph'
+        className={`px-4 py-2 text-sm font-medium transition-colors border-l border-indigo-100 ${viewMode === 'graph'
             ? 'bg-indigo-600 text-white'
             : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-        }`}
+          }`}
       >
         그래프
       </button>
@@ -36,8 +34,8 @@ const DashboardPage = () => {
   const renderViewContent = () => {
     if (viewMode === 'graph') {
       return (
-        <div className="mt-8 h-[640px]">
-          <div className="h-full rounded-lg bg-white shadow">
+        <div className="mt-8">
+          <div className="rounded-lg bg-white shadow">
             <ClusteringPage />
           </div>
         </div>
