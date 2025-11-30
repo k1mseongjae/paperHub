@@ -118,9 +118,8 @@ const ClusteringPage: React.FC = () => {
   const fetchGraph = async (arxivId: string, merge = false) => {
     setLoading(true);
     setError(null);
-    if (!merge) {
-      setCenterArxivId(arxivId);
-    }
+    setCenterArxivId(arxivId);
+
     setSelectedArxiv(arxivId);
     try {
       const resp = await axiosInstance.get(`/api/graph/${encodeURIComponent(arxivId)}`);
@@ -177,7 +176,10 @@ const ClusteringPage: React.FC = () => {
 
   const fetchExplanation = async (recId: string) => {
     // centerArxivId가 있으면 사용
-    if (!centerArxivId) return;
+    if (!centerArxivId) {
+      setError('기준 논문(Center)이 없어 추천 이유를 불러올 수 없습니다.');
+      return;
+    }
     if (explanations[recId]) return;
     setExplaining(recId);
     try {
