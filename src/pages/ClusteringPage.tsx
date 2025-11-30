@@ -312,6 +312,12 @@ const ClusteringPage: React.FC = () => {
     // If we click a node, we want to expand it (fetch its recommendations and merge).
     // We should only do this if it's not already expanded? 
     // For now, just always try to fetch/merge.
+    // arXiv ID가 없으면(메타데이터 없는 논문) 확장 불가
+    if (!node.arXivId) {
+      setError('이 논문은 메타데이터가 없어 확장할 수 없습니다.');
+      return;
+    }
+
     fetchGraph(node.arXivId, true);
 
     if (!node.isCenter) {

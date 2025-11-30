@@ -95,11 +95,7 @@ const SearchPage = () => {
       const formData = new FormData();
       formData.append('file', pdfFile);
 
-      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData);
 
       const paperId = uploadResp?.data?.data?.paperId;
       if (!paperId) {
