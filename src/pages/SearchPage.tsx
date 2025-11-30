@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 
@@ -9,6 +8,16 @@ interface ArxivPaper {
   summary: string;
   authors: string[];
   pdfLink: string;
+  published?: string;
+  categories?: string[];
+}
+
+interface ApiResult<T> {
+  success: boolean;
+  data: T;
+  error?: {
+    message?: string;
+  } | null;
 }
 
 const SearchPage = () => {
@@ -32,36 +41,21 @@ const SearchPage = () => {
       setError(null);
       setResults([]);
       try {
-        const arxivApiUrl = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(
-          searchTerm
-        )}&start=0&max_results=10`;
-        const response = await axios.get(arxivApiUrl);
-
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(response.data, 'text/xml');
-        const entries = Array.from(xmlDoc.getElementsByTagName('entry'));
-
-        const papers: ArxivPaper[] = entries.map((entry) => {
-          const authors = Array.from(entry.getElementsByTagName('author')).map(
-            (author) => author.getElementsByTagName('name')[0]?.textContent || 'N/A'
-          );
-          const pdfLink = entry.querySelector('link[title="pdf"]')?.getAttribute('href') || '';
-          return {
-            id: entry.getElementsByTagName('id')[0]?.textContent || '',
-            title: entry.getElementsByTagName('title')[0]?.textContent || '',
-            summary: entry.getElementsByTagName('summary')[0]?.textContent?.trim() || '',
-            authors,
-            pdfLink,
-          };
+        const response = await axiosInstance.get<ApiResult<ArxivPaper[]>>('/api/arxiv/search', {
+          params: { query: searchTerm, start: 0, maxResults: 10 },
         });
 
         if (!cancelled) {
-          setResults(papers);
+          if (response.data.success) {
+            setResults(response.data.data || []);
+          } else {
+            setError(response.data.error?.message || '논문을 불러오는 데 실패했습니다.');
+          }
         }
       } catch (err) {
         console.error('arXiv API fetch error:', err);
         if (!cancelled) {
-          setError('논문을 불러오는 데 실패했습니다. CORS 정책 문제일 수 있습니다.');
+          setError('논문을 불러오는 데 실패했습니다.');
         }
       } finally {
         if (!cancelled) {
@@ -84,6 +78,9 @@ const SearchPage = () => {
     }
 
     try {
+      if (!paper.pdfLink) {
+        throw new Error('PDF 링크가 제공되지 않았습니다.');
+      }
       const response = await fetch(paper.pdfLink);
       if (!response.ok) {
         throw new Error('PDF download failed');
@@ -98,11 +95,7 @@ const SearchPage = () => {
       const formData = new FormData();
       formData.append('file', pdfFile);
 
-      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData);
 
       const paperId = uploadResp?.data?.data?.paperId;
       if (!paperId) {

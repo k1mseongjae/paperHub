@@ -1,125 +1,325 @@
-import React, { useState } from 'react';
-import axiosInstance from '../api/axiosInstance.ts';
-import MyPapersPage from './MyPapersPage.tsx';
-import ClusteringPage from './ClusteringPage.tsx';
+import { useEffect, useState, useMemo } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import axiosInstance from '../api/axiosInstance';
+import ClusteringPage from './ClusteringPage';
+
+// --- Types ---
+interface UserPaperStatsResp {
+  userId: number;
+  paperId: number;
+  // 시간/세션
+  firstOpenedAt?: string;
+  lastOpenedAt?: string;
+  totalOpenCount: number;
+  totalReadTimeSec: number;
+  totalSessions: number;
+  maxSessionTimeSec: number;
+  avgSessionTimeSec: number;
+  // 읽기 진행도
+  lastPageRead?: number;
+  maxPageReached?: number;
+  pageCount?: number;
+  completionRatio?: number;
+  isCompleted?: boolean;
+  // 상호작용
+  totalHighlightCount: number;
+  totalMemoCount: number;
+  // 메타
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface PaperInfo {
+  title: string;
+  status: 'TO_READ' | 'IN_PROGRESS' | 'DONE';
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+const STATUS_COLORS = {
+  TO_READ: '#9ca3af',    // Gray
+  IN_PROGRESS: '#3b82f6', // Blue
+  DONE: '#10b981'        // Green
+};
 
 const DashboardPage = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'graph'>('dashboard');
+  const [stats, setStats] = useState<UserPaperStatsResp[]>([]);
+  const [paperInfoMap, setPaperInfoMap] = useState<Record<number, PaperInfo>>({});
+  const [loading, setLoading] = useState(true);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // 1. Fetch Stats
+        const statsResp = await axiosInstance.get('/api/userStats');
+        if (statsResp.data.success) {
+          setStats(statsResp.data.data);
+        }
+
+        // 2. Fetch Papers to map IDs to Titles and Status
+        const statuses = ['to-read', 'in-progress', 'done'];
+        const infoMap: Record<number, PaperInfo> = {};
+
+        await Promise.all(statuses.map(async (status) => {
+          try {
+            const resp = await axiosInstance.get(`/api/collections/${status}?size=100`);
+            if (resp.data.success) {
+              resp.data.data.content.forEach((item: any) => {
+                const pId = item.paperId || item.paper?.id;
+                const title = item.title || item.paper?.paperInfo?.title || item.paper?.title;
+                // Map status string to enum-like key
+                let statusKey: 'TO_READ' | 'IN_PROGRESS' | 'DONE' = 'TO_READ';
+                if (status === 'in-progress') statusKey = 'IN_PROGRESS';
+                if (status === 'done') statusKey = 'DONE';
+
+                if (pId && title) {
+                  infoMap[pId] = { title, status: statusKey };
+                }
+              });
+            }
+          } catch (e) {
+            console.error(`Failed to fetch ${status} papers`, e);
+          }
+        }));
+        setPaperInfoMap(infoMap);
+
+      } catch (e) {
+        console.error('Failed to fetch dashboard data', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // --- Derived Data for Charts ---
+
+  // 1. Summary Stats
+  const totalPapers = stats.length;
+  const totalReadTime = stats.reduce((acc, curr) => acc + curr.totalReadTimeSec, 0);
+  const completedPapers = stats.filter(s => s.isCompleted).length;
+  const totalHighlights = stats.reduce((acc, curr) => acc + curr.totalHighlightCount, 0);
+
+  // 2. Activity (Last 7 Days) - Stacked by Status
+  const activityData = useMemo(() => {
+    const days = 7;
+    const data: Record<string, { date: string; TO_READ: number; IN_PROGRESS: number; DONE: number }> = {};
+    const now = new Date();
+
+    // Initialize last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      data[key] = { date: key, TO_READ: 0, IN_PROGRESS: 0, DONE: 0 };
     }
+
+    stats.forEach(s => {
+      if (s.lastOpenedAt) {
+        const date = s.lastOpenedAt.split('T')[0];
+        if (data[date]) {
+          const info = paperInfoMap[s.paperId];
+          const status = info ? info.status : 'TO_READ'; // Default to TO_READ if unknown
+          data[date][status]++;
+        }
+      }
+    });
+
+    return Object.values(data);
+  }, [stats, paperInfoMap]);
+
+  // 3. Top Papers by Reading Time
+  const topPapersData = useMemo(() => {
+    return [...stats]
+      .sort((a, b) => b.totalReadTimeSec - a.totalReadTimeSec)
+      .slice(0, 5)
+      .map(s => ({
+        name: paperInfoMap[s.paperId]?.title || `Paper ${s.paperId}`,
+        time: Math.round(s.totalReadTimeSec / 60) // minutes
+      }));
+  }, [stats, paperInfoMap]);
+
+  // 4. Completion Status
+  const completionData = useMemo(() => {
+    const done = stats.filter(s => s.isCompleted).length;
+    const inProgress = stats.length - done;
+    return [
+      { name: '완료', value: done },
+      { name: '학습 중', value: inProgress }
+    ];
+  }, [stats]);
+
+
+  // --- Render Helpers ---
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}시간 ${m}분`;
+    return `${m}분`;
   };
 
-  const handleUpload = async () => {
-    if (!file) {
-      alert('파일을 선택해주세요.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('sourceId', 'temp-source-id'); 
-    formData.append('uploaderId', 'temp-uploader-id');
-
-    try {
-      const response = await axiosInstance.post('/api/papers/register-from-url', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      console.log('Upload success:', response.data);
-      alert('논문이 성공적으로 업로드되었습니다.');
-      setFile(null);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert('업로드에 실패했습니다.');
-    }
-  };
-
-  // ui 전환
   const renderViewSwitcher = () => (
     <div className="inline-flex items-center overflow-hidden rounded-lg border border-indigo-100 bg-white shadow-sm">
       <button
         type="button"
-        onClick={() => setViewMode('list')}
-        className={`px-4 py-2 text-sm font-medium transition-colors ${
-          viewMode === 'list'
-            ? 'bg-indigo-600 text-white'
-            : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-        }`}
+        onClick={() => setViewMode('dashboard')}
+        className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'dashboard'
+          ? 'bg-indigo-600 text-white'
+          : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+          }`}
       >
-        목록
+        대시보드
       </button>
       <button
         type="button"
         onClick={() => setViewMode('graph')}
-        className={`px-4 py-2 text-sm font-medium transition-colors border-l border-indigo-100 ${
-          viewMode === 'graph'
-            ? 'bg-indigo-600 text-white'
-            : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
-        }`}
+        className={`px-4 py-2 text-sm font-medium transition-colors border-l border-indigo-100 ${viewMode === 'graph'
+          ? 'bg-indigo-600 text-white'
+          : 'text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+          }`}
       >
-        그래프
+        논문 추천
       </button>
     </div>
   );
 
-  const renderViewContent = () => {
-    if (viewMode === 'graph') {
-      return (
-        <div className="mt-8 h-[640px]">
-          <div className="h-full rounded-lg bg-white shadow">
-            <ClusteringPage />
-          </div>
-        </div>
-      );
-    }
-
+  if (viewMode === 'graph') {
     return (
-      <div className="mt-8">
-        <MyPapersPage variant="list" />
+      <div className="flex flex-col h-full">
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-6 shrink-0">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-800">논문 추천</h2>
+            <p className="mt-2 text-gray-600">논문 간의 연결 관계를 탐색해보세요.</p>
+          </div>
+          {renderViewSwitcher()}
+        </div>
+        <div className="flex-1 min-h-0 rounded-lg bg-white shadow">
+          <ClusteringPage />
+        </div>
       </div>
     );
-  };
+  }
 
   return (
-    <>
-      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+    <div className="pb-10">
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-800">Dashboard</h2>
-          <p className="mt-2 text-gray-600">Welcome back! Manage your papers efficiently.</p>
+          <h2 className="text-2xl font-semibold text-gray-800">대시보드</h2>
+          <p className="mt-2 text-gray-600">학습 진행 상황을 한눈에 확인하세요.</p>
         </div>
         {renderViewSwitcher()}
       </div>
 
-      {renderViewContent()}
+      {loading ? (
+        <div className="text-center py-20 text-gray-500">데이터를 불러오는 중...</div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+              <h3 className="text-sm font-medium text-gray-500 uppercase">총 읽은 논문</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-800">{totalPapers}편</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+              <h3 className="text-sm font-medium text-gray-500 uppercase">총 학습 시간</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-800">{formatTime(totalReadTime)}</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+              <h3 className="text-sm font-medium text-gray-500 uppercase">완독한 논문</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-800">{completedPapers}편</p>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+              <h3 className="text-sm font-medium text-gray-500 uppercase">하이라이트</h3>
+              <p className="mt-2 text-3xl font-bold text-gray-800">{totalHighlights}개</p>
+            </div>
+          </div>
 
-      {/* Upload Section (Footer) */}
-      <div className="mt-10 p-6 bg-white rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-700">Upload New Paper</h3>
-        <div className="mt-4">
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileChange}
-            className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          />
-          {file && <span className="ml-4 text-gray-600">{file.name}</span>}
+          {/* Charts Row 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Activity Chart */}
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">최근 7일 학습 활동</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={activityData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={(val) => val.slice(5)} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="TO_READ" name="새로 추가한 논문" stackId="a" fill={STATUS_COLORS.TO_READ} />
+                    <Bar dataKey="IN_PROGRESS" name="학습 중" stackId="a" fill={STATUS_COLORS.IN_PROGRESS} />
+                    <Bar dataKey="DONE" name="읽기 완료" stackId="a" fill={STATUS_COLORS.DONE} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Status Pie Chart */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">학습 상태 비율</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={completionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {completionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row 2 */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">가장 오래 읽은 논문 TOP 5</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topPapersData} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={150}
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => value.length > 20 ? `${value.substring(0, 20)}...` : value}
+                  />
+                  <Tooltip />
+                  <Bar dataKey="time" name="학습 시간(분)" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
-        <div className="mt-4">
-          <button
-            onClick={handleUpload}
-            className="px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
-            disabled={!file}
-          >
-            Upload
-          </button>
-        </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 };
 

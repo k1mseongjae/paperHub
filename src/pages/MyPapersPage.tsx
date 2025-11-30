@@ -32,9 +32,9 @@ interface PaperInfoDetail {
   abstractText?: string;
   primaryCategory?: string;
   pdfUrl?: string;
-  authorsJson?: string;     
-  categoriesJson?: string;  
-  publishedDate?: string;   
+  authorsJson?: string;
+  categoriesJson?: string;
+  publishedDate?: string;
 }
 
 type MyPapersPageVariant = 'grid' | 'list';
@@ -63,6 +63,7 @@ const dedupePapers = (items: PaperListItem[]): PaperListItem[] => {
 
 const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const [papers, setPapers] = useState<PaperListItem[]>([]);
+  const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
@@ -81,11 +82,11 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const statusLabel = useMemo(() => {
     switch (statusSegment) {
       case 'in-progress':
-        return '읽는 중';
+        return '학습 중';
       case 'done':
         return '읽기 완료';
       default:
-        return '읽을 예정';
+        return '새로 추가한 논문';
     }
   }, [statusSegment]);
 
@@ -200,6 +201,23 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     fetchPapers();
   }, [statusSegment]);
 
+  const handleDelete = async (paper: PaperListItem) => {
+    if (!window.confirm(`'${paper.title}' 논문을 서재에서 삭제하시겠습니까?`)) {
+      return;
+    }
+    try {
+      const resp = await axiosInstance.delete(`/api/collection-items/${paper.id}`);
+      if (resp.data.success) {
+        setPapers(prev => prev.filter(p => p.id !== paper.id));
+      } else {
+        alert(resp.data.error?.message || "삭제 실패");
+      }
+    } catch (e) {
+      console.error("Delete failed", e);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
+  };
+
   useEffect(() => {
     const loadedIds = loadedDetailIdsRef.current;
     const missing = papers.filter((paper) => !loadedIds.has(paper.id) && !detailErrors[paper.id]);
@@ -251,11 +269,11 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         if (Object.keys(fetched).length > 0) {
           setPapers((prev) =>
             prev.map((paper) => {
-            const detail = fetched[paper.id];
-            if (!detail) return paper;
-            return {
-              ...paper,
-              title: detail.title ?? paper.title,
+              const detail = fetched[paper.id];
+              if (!detail) return paper;
+              return {
+                ...paper,
+                title: detail.title ?? paper.title,
                 authors: detail.authorsJson ?? paper.authors,
                 categories: detail.categoriesJson ?? paper.categories,
                 arxivId: detail.arxivId ?? paper.arxivId,
@@ -278,6 +296,29 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
       cancelled = true;
     };
   }, [papers, detailErrors, statusSegment]);
+
+  const sortedPapers = useMemo(() => {
+    const items = [...papers];
+    if (sortBy === 'title') {
+      items.sort((a, b) => {
+        const ta = (a.title ?? '').toLowerCase();
+        const tb = (b.title ?? '').toLowerCase();
+        if (!ta && !tb) return 0;
+        if (!ta) return 1;
+        if (!tb) return -1;
+        return ta.localeCompare(tb);
+      });
+    } else {
+      items.sort((a, b) => {
+        const da = a.updatedAt || a.addedAt || a.publishedDate || '';
+        const db = b.updatedAt || b.addedAt || b.publishedDate || '';
+        const va = da ? Date.parse(da) : 0;
+        const vb = db ? Date.parse(db) : 0;
+        return vb - va;
+      });
+    }
+    return items;
+  }, [papers, sortBy]);
 
   // 로딩 중일 때 보여줄 화면
   if (isLoading) {
@@ -302,17 +343,21 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
           <p className="text-sm text-gray-500">{statusLabel}</p>
         </div>
         <div>
-          <select className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option>Sort by Date</option>
-            <option>Sort by Title</option>
+          <select
+            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value === 'title' ? 'title' : 'date')}
+          >
+            <option value="date">Sort by Date</option>
+            <option value="title">Sort by Title</option>
           </select>
         </div>
       </div>
 
       {/* Paper List */}
       <div className={containerClass}>
-        {papers.length > 0 ? (
-          papers.map((paper) => (
+        {sortedPapers.length > 0 ? (
+          sortedPapers.map((paper) => (
             <PaperCard
               key={paper.id}
               id={paper.id}
@@ -325,6 +370,17 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
               categories={parseJsonArraySafe(paper.categories)}
               variant={variant}
               collectionIdForRoute={paper.id}
+              actionButton={
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(paper);
+                  }}
+                  className="px-3 py-1 rounded text-xs font-semibold text-red-600 bg-red-100 hover:bg-red-200 transition-colors"
+                >
+                  삭제
+                </button>
+              }
             />
           ))
         ) : (

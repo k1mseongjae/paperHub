@@ -14,8 +14,10 @@
     "pdfjs-dist": "^3.11.174",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-force-graph-2d": "^1.25.3",
     "react-pdf": "^7.7.1",
     "react-router-dom": "^7.9.3",
+    "recharts": "^3.5.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
