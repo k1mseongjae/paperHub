@@ -32,9 +32,9 @@ interface PaperInfoDetail {
   abstractText?: string;
   primaryCategory?: string;
   pdfUrl?: string;
-  authorsJson?: string;     
-  categoriesJson?: string;  
-  publishedDate?: string;   
+  authorsJson?: string;
+  categoriesJson?: string;
+  publishedDate?: string;
 }
 
 type MyPapersPageVariant = 'grid' | 'list';
@@ -82,11 +82,11 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
   const statusLabel = useMemo(() => {
     switch (statusSegment) {
       case 'in-progress':
-        return '읽는 중';
+        return '학습 중';
       case 'done':
         return '읽기 완료';
       default:
-        return '읽을 예정';
+        return '새로 추가한 논문';
     }
   }, [statusSegment]);
 
@@ -252,11 +252,11 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         if (Object.keys(fetched).length > 0) {
           setPapers((prev) =>
             prev.map((paper) => {
-            const detail = fetched[paper.id];
-            if (!detail) return paper;
-            return {
-              ...paper,
-              title: detail.title ?? paper.title,
+              const detail = fetched[paper.id];
+              if (!detail) return paper;
+              return {
+                ...paper,
+                title: detail.title ?? paper.title,
                 authors: detail.authorsJson ?? paper.authors,
                 categories: detail.categoriesJson ?? paper.categories,
                 arxivId: detail.arxivId ?? paper.arxivId,

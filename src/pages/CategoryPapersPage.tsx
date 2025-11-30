@@ -47,7 +47,7 @@ const CategoryPapersPage: React.FC = () => {
         const infoResp = await axiosInstance.get(`/api/paper-infos`, {
           params: {
             category: code,
-            rollup: false,
+            rollup: true,
             page,
             size,
           },
@@ -74,7 +74,7 @@ const CategoryPapersPage: React.FC = () => {
         try {
           const resp = await axiosInstance.get(`/api/categories/${code}/papers`, {
             params: {
-              rollup: false,
+              rollup: true,
               page,
               size,
             },

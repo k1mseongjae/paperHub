@@ -93,14 +93,14 @@ const STATUS_OPTIONS: Array<{
     {
       status: 'TO_READ',
       slug: 'to-read',
-      label: '읽을 예정',
+      label: '새로 추가한 논문',
       description: '나중에 읽을 목록에 보관합니다.',
       badgeClass: 'bg-sky-100 text-sky-700',
     },
     {
       status: 'IN_PROGRESS',
       slug: 'in-progress',
-      label: '읽는 중',
+      label: '학습 중',
       description: '지금 읽고 있는 논문입니다.',
       badgeClass: 'bg-amber-100 text-amber-700',
     },

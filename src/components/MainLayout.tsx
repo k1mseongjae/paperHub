@@ -163,10 +163,10 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       prev.map((cat) =>
         cat.code === code
           ? {
-              ...cat,
-              isExpanded: !cat.isExpanded,
-              isLoading: !cat.isExpanded && !cat.children,
-            }
+            ...cat,
+            isExpanded: !cat.isExpanded,
+            isLoading: !cat.isExpanded && !cat.children,
+          }
           : cat
       )
     );
@@ -179,11 +179,11 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       prev.map((cat) =>
         cat.code === code
           ? {
-              ...cat,
-              isExpanded: true,
-              isLoading: false,
-              children,
-            }
+            ...cat,
+            isExpanded: true,
+            isLoading: false,
+            children,
+          }
           : cat
       )
     );
@@ -197,13 +197,13 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const collectionLinks = useMemo(
     () => [
       {
-        label: '읽을 예정',
+        label: '새로 추가한 논문',
         to: '/collections?status=to-read',
         badge: collectionCounts.toRead,
         active: location.pathname.startsWith('/collections') && location.search.includes('status=to-read'),
       },
       {
-        label: '읽는 중',
+        label: '학습 중',
         to: '/collections?status=in-progress',
         badge: collectionCounts.inProgress,
         active: location.pathname.startsWith('/collections') && location.search.includes('status=in-progress'),
@@ -229,9 +229,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50">
       <aside
-        className={`flex flex-col border-r border-gray-100 bg-white py-8 shadow-lg overflow-hidden transition-[width] duration-200 ease-out ${
-          isSidebarOpen ? 'w-80 px-6' : 'w-16 px-2'
-        }`}
+        className={`flex flex-col border-r border-gray-100 bg-white py-8 shadow-lg overflow-hidden transition-[width] duration-200 ease-out ${isSidebarOpen ? 'w-80 px-6' : 'w-16 px-2'
+          }`}
         onMouseEnter={() => setSidebarOpen(true)}
         onMouseLeave={() => setSidebarOpen(false)}
         style={{ willChange: 'width' }}
@@ -260,9 +259,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pr-1">
           <section>
-            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${
-              isSidebarOpen ? 'opacity-100' : 'opacity-0'
-            }`}>내 컬렉션</p>
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+              }`}>내 컬렉션</p>
             <ul className="space-y-1">
               {collectionLinks.map((link) => (
                 <li key={link.label}>
@@ -273,9 +271,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     title={isSidebarOpen ? undefined : link.label}
                   >
                     <span
-                      className={`whitespace-nowrap transition-opacity duration-150 ${
-                        isSidebarOpen ? 'opacity-100' : 'opacity-0'
-                      }`}
+                      className={`whitespace-nowrap transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+                        }`}
                       aria-hidden={!isSidebarOpen}
                     >
                       {link.label}
@@ -288,9 +285,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </section>
 
           <section>
-            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${
-              isSidebarOpen ? 'opacity-100' : 'opacity-0'
-            }`}>arXiv 카테고리</p>
+            <p className={`mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+              }`}>arXiv 카테고리</p>
             {loadingCategories && isSidebarOpen && (
               <p className="px-4 py-2 text-xs text-gray-400">카테고리 로딩 중...</p>
             )}
@@ -302,27 +298,35 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 return (
                   <li key={category.code}>
                     <div className="flex flex-col">
-                      <button
-                        type="button"
-                        onClick={() => toggleCategory(category.code)}
-                        className={`${itemClass} ${isActiveRoot ? activeItemClass : defaultItemClass}`}
-                        title={isSidebarOpen ? undefined : category.name}
-                      >
-                        <span className="flex items-center gap-2 overflow-hidden">
+                      <div className={`flex items-center rounded-md transition-colors ${isActiveRoot ? activeItemClass : defaultItemClass}`}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/category/${category.code}`)}
+                          className="flex flex-1 items-center justify-between px-4 py-2 text-left"
+                          title={isSidebarOpen ? undefined : category.name}
+                        >
                           <span
-                            className={`whitespace-nowrap transition-opacity duration-150 ${
-                              isSidebarOpen ? 'opacity-100' : 'opacity-0'
-                            }`}
+                            className={`whitespace-nowrap transition-opacity duration-150 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'
+                              }`}
                             aria-hidden={!isSidebarOpen}
                           >
                             {category.name}
                           </span>
-                          {isSidebarOpen && (
-                            <span className="text-xs text-gray-400">{category.isExpanded ? 'v' : '>'}</span>
-                          )}
-                        </span>
-                        {isSidebarOpen ? badge(category.paperCount) : null}
-                      </button>
+                          {isSidebarOpen ? badge(category.paperCount) : null}
+                        </button>
+                        {isSidebarOpen && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCategory(category.code);
+                            }}
+                            className="px-2 py-2 text-xs text-gray-400 hover:text-indigo-600"
+                          >
+                            {category.isExpanded ? 'v' : '>'}
+                          </button>
+                        )}
+                      </div>
                       {isSidebarOpen && category.isExpanded && (
                         <div className="mt-1 space-y-1 pl-4">
                           {category.isLoading && (
@@ -335,9 +339,8 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                                 key={child.code}
                                 type="button"
                                 onClick={() => navigate(`/category/${child.code}`)}
-                                className={`${itemClass} ${
-                                  isActiveChild ? activeItemClass : defaultItemClass
-                                }`}
+                                className={`${itemClass} ${isActiveChild ? activeItemClass : defaultItemClass
+                                  }`}
                               >
                                 <span>{child.name}</span>
                                 {badge(child.paperCount)}
