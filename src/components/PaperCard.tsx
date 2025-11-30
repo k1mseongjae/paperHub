@@ -18,6 +18,7 @@ export interface PaperCardProps {
   onClick?: () => void;
   disabled?: boolean;
   disableLink?: boolean;
+  actionButton?: React.ReactNode;
 }
 
 const PaperCard = ({
@@ -34,6 +35,7 @@ const PaperCard = ({
   onClick,
   disabled = false,
   disableLink = false,
+  actionButton,
 }: PaperCardProps) => {
   const authorsLabel = formatAuthorsShort(authors);
   const publishedYear = getPublishedYear(publishedDate);
@@ -42,8 +44,8 @@ const PaperCard = ({
   const containerClass =
     variant === 'list'
       ? 'w-full p-6 bg-white rounded-lg shadow-md transition-shadow flex flex-col md:flex-row md:items-start md:justify-between gap-4'
-      : 'p-6 bg-white rounded-lg shadow-md transition-shadow';
-  const metaWrapperClass = variant === 'list' ? 'flex-1' : '';
+      : 'p-6 bg-white rounded-lg shadow-md transition-shadow flex flex-col justify-between h-full';
+  const metaWrapperClass = variant === 'list' ? 'flex-1' : 'flex-1';
 
   const linkHref =
     !disableLink && paperId
@@ -52,6 +54,9 @@ const PaperCard = ({
 
   const handleClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!isClickable) return;
+    // If clicking on action button, don't trigger card click
+    if ((event.target as HTMLElement).closest('button')) return;
+
     event.preventDefault();
     onClick?.();
   };
@@ -64,9 +69,8 @@ const PaperCard = ({
     }
   };
 
-  const titleClass = `text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1 ${
-    !linkHref && isClickable && !disabled ? 'hover:underline' : ''
-  }`;
+  const titleClass = `text-lg font-bold text-gray-800 line-clamp-2 md:line-clamp-1 ${!linkHref && isClickable && !disabled ? 'hover:underline' : ''
+    }`;
   const TitleContent = <h3 className={titleClass}>{title || '제목 미상'}</h3>;
 
   const TitleNode =
@@ -104,24 +108,26 @@ const PaperCard = ({
         )}
         {abstractText && (
           <p
-            className={`text-sm text-gray-500 mt-3 ${
-              variant === 'list' ? 'line-clamp-2 md:line-clamp-none' : 'line-clamp-3'
-            }`}
+            className={`text-sm text-gray-500 mt-3 ${variant === 'list' ? 'line-clamp-2 md:line-clamp-none' : 'line-clamp-3'
+              }`}
           >
             {abstractText}
           </p>
         )}
         {arxivId && <p className="text-xs text-gray-400 mt-2">arXiv: {arxivId}</p>}
       </div>
-      <div className={`mt-4 ${variant === 'list' ? 'md:mt-0 md:w-48 flex-shrink-0' : ''}`}>
-        {categories.slice(0, 5).map((tag) => (
-          <span
-            key={tag}
-            className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full mb-2"
-          >
-            {tag}
-          </span>
-        ))}
+      <div className={`mt-4 ${variant === 'list' ? 'md:mt-0 md:w-48 flex-shrink-0 flex flex-col items-end gap-2' : 'flex flex-col items-start gap-2'}`}>
+        <div className="flex flex-wrap gap-2">
+          {categories.slice(0, 5).map((tag) => (
+            <span
+              key={tag}
+              className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+        {actionButton && <div className="mt-2">{actionButton}</div>}
       </div>
     </div>
   );

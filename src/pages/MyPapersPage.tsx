@@ -201,6 +201,23 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     fetchPapers();
   }, [statusSegment]);
 
+  const handleDelete = async (paper: PaperListItem) => {
+    if (!window.confirm(`'${paper.title}' 논문을 서재에서 삭제하시겠습니까?`)) {
+      return;
+    }
+    try {
+      const resp = await axiosInstance.delete(`/api/collection-items/${paper.id}`);
+      if (resp.data.success) {
+        setPapers(prev => prev.filter(p => p.id !== paper.id));
+      } else {
+        alert(resp.data.error?.message || "삭제 실패");
+      }
+    } catch (e) {
+      console.error("Delete failed", e);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
+  };
+
   useEffect(() => {
     const loadedIds = loadedDetailIdsRef.current;
     const missing = papers.filter((paper) => !loadedIds.has(paper.id) && !detailErrors[paper.id]);
@@ -353,6 +370,17 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
               categories={parseJsonArraySafe(paper.categories)}
               variant={variant}
               collectionIdForRoute={paper.id}
+              actionButton={
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(paper);
+                  }}
+                  className="px-3 py-1 rounded text-xs font-semibold text-red-600 bg-red-100 hover:bg-red-200 transition-colors"
+                >
+                  삭제
+                </button>
+              }
             />
           ))
         ) : (
