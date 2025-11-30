@@ -5,7 +5,7 @@ import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import { useAuthStore } from './state/authStore';
 
-// 앱 시작 시 인증 상태 초기화
+// 앱 시작 시 인증 초기화
 useAuthStore.getState().initialize();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

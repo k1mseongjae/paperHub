@@ -30,7 +30,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   });
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [isSidebarOpen, setSidebarOpen] = useState(false); // hover-driven sidebar
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // Hover 사이드바
 
   const fetchCollectionCounts = useCallback(async () => {
     try {

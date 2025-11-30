@@ -15,7 +15,7 @@ import {
 import axiosInstance from '../api/axiosInstance';
 import ClusteringPage from './ClusteringPage';
 
-// --- Types ---
+// --- 타입 ---
 interface UserPaperStatsResp {
   userId: number;
   paperId: number;
@@ -106,21 +106,21 @@ const DashboardPage = () => {
     fetchData();
   }, []);
 
-  // --- Derived Data for Charts ---
+  // --- 차트용 파생 데이터 ---
 
-  // 1. Summary Stats
+  // 1. 요약 통계
   const totalPapers = stats.length;
   const totalReadTime = stats.reduce((acc, curr) => acc + curr.totalReadTimeSec, 0);
   const completedPapers = stats.filter(s => s.isCompleted).length;
   const totalHighlights = stats.reduce((acc, curr) => acc + curr.totalHighlightCount, 0);
 
-  // 2. Activity (Last 7 Days) - Stacked by Status
+  // 2. Activity (최근 7일) - 상태별 스택
+
   const activityData = useMemo(() => {
-    const days = 7;
     const data: Record<string, { date: string; TO_READ: number; IN_PROGRESS: number; DONE: number }> = {};
     const now = new Date();
 
-    // Initialize last 7 days
+    // 최근 7일 초기화
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
@@ -133,7 +133,7 @@ const DashboardPage = () => {
         const date = s.lastOpenedAt.split('T')[0];
         if (data[date]) {
           const info = paperInfoMap[s.paperId];
-          const status = info ? info.status : 'TO_READ'; // Default to TO_READ if unknown
+          const status = info ? info.status : 'TO_READ'; // 정보 없으면 TO_READ 기본값
           data[date][status]++;
         }
       }
@@ -142,18 +142,18 @@ const DashboardPage = () => {
     return Object.values(data);
   }, [stats, paperInfoMap]);
 
-  // 3. Top Papers by Reading Time
+  // 3. Top Papers (읽은 시간 순)
   const topPapersData = useMemo(() => {
     return [...stats]
       .sort((a, b) => b.totalReadTimeSec - a.totalReadTimeSec)
       .slice(0, 5)
       .map(s => ({
         name: paperInfoMap[s.paperId]?.title || `Paper ${s.paperId}`,
-        time: Math.round(s.totalReadTimeSec / 60) // minutes
+        time: Math.round(s.totalReadTimeSec / 60) // 분 단위
       }));
   }, [stats, paperInfoMap]);
 
-  // 4. Completion Status
+  // 4. 완료 상태
   const completionData = useMemo(() => {
     const done = stats.filter(s => s.isCompleted).length;
     const inProgress = stats.length - done;
@@ -164,7 +164,7 @@ const DashboardPage = () => {
   }, [stats]);
 
 
-  // --- Render Helpers ---
+  // --- 렌더링 헬퍼 ---
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -228,7 +228,7 @@ const DashboardPage = () => {
         <div className="text-center py-20 text-gray-500">데이터를 불러오는 중...</div>
       ) : (
         <div className="flex flex-col gap-6">
-          {/* Summary Cards */}
+          {/* 요약 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
               <h3 className="text-sm font-medium text-gray-500 uppercase">총 읽은 논문</h3>
@@ -248,9 +248,9 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Charts Row 1 */}
+          {/* 차트 행 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Activity Chart */}
+            {/* 활동 차트 */}
             <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">최근 7일 학습 활동</h3>
               <div className="h-64">
@@ -269,7 +269,7 @@ const DashboardPage = () => {
               </div>
             </div>
 
-            {/* Status Pie Chart */}
+            {/* 상태 파이 차트 */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">학습 상태 비율</h3>
               <div className="h-64">
@@ -284,7 +284,7 @@ const DashboardPage = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {completionData.map((entry, index) => (
+                      {completionData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -296,7 +296,7 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Charts Row 2 */}
+          {/* 차트 행 2 */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-indigo-50">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">가장 오래 읽은 논문 TOP 5</h3>
             <div className="h-64">

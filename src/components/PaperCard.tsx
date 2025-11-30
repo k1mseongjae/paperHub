@@ -5,7 +5,7 @@ import { formatAuthorsShort, getPublishedYear } from '../utils/papers';
 export type PaperCardVariant = 'grid' | 'list';
 
 export interface PaperCardProps {
-  id: number; // collection item id or fallback id
+  id: number; // 컬렉션 아이템 ID 또는 Fallback ID
   paperId?: number;
   title?: string;
   authors?: string[];
@@ -14,7 +14,7 @@ export interface PaperCardProps {
   arxivId?: string;
   publishedDate?: string;
   variant?: PaperCardVariant;
-  collectionIdForRoute?: number; // if provided, encoded in paper route
+  collectionIdForRoute?: number; // 제공 시 라우트 인코딩
   onClick?: () => void;
   disabled?: boolean;
   disableLink?: boolean;
@@ -54,7 +54,7 @@ const PaperCard = ({
 
   const handleClick = (event: MouseEvent<HTMLDivElement>) => {
     if (!isClickable) return;
-    // If clicking on action button, don't trigger card click
+    // 액션 버튼 클릭 시 카드 클릭 방지
     if ((event.target as HTMLElement).closest('button')) return;
 
     event.preventDefault();
