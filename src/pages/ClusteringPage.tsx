@@ -118,9 +118,8 @@ const ClusteringPage: React.FC = () => {
   const fetchGraph = async (arxivId: string, merge = false) => {
     setLoading(true);
     setError(null);
-    if (!merge) {
-      setCenterArxivId(arxivId);
-    }
+    setCenterArxivId(arxivId);
+
     setSelectedArxiv(arxivId);
     try {
       const resp = await axiosInstance.get(`/api/graph/${encodeURIComponent(arxivId)}`);
@@ -177,7 +176,10 @@ const ClusteringPage: React.FC = () => {
 
   const fetchExplanation = async (recId: string) => {
     // centerArxivId가 있으면 사용
-    if (!centerArxivId) return;
+    if (!centerArxivId) {
+      setError('기준 논문(Center)이 없어 추천 이유를 불러올 수 없습니다.');
+      return;
+    }
     if (explanations[recId]) return;
     setExplaining(recId);
     try {
@@ -302,7 +304,7 @@ const ClusteringPage: React.FC = () => {
     fetchGraph(node.arXivId, true);
 
     if (!node.isCenter) {
-      fetchExplanation(node.arXivId);
+      // fetchExplanation(node.arXivId); // 자동 호출 제거
     }
     fgRef.current?.centerAt(node.x ?? 0, node.y ?? 0, 600);
     fgRef.current?.zoom(1.5, 600);
@@ -454,9 +456,19 @@ const ClusteringPage: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-indigo-800">
-                    {explaining === selectedNode.arXivId ? '추천 이유 생성 중...' : '노드를 클릭하면 추천 이유를 불러옵니다.'}
-                  </p>
+                  <div className="mt-2">
+                    {explaining === selectedNode.arXivId ? (
+                      <p className="text-sm text-indigo-800">추천 이유 생성 중...</p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fetchExplanation(selectedNode.arXivId)}
+                        className="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+                      >
+                        추천 이유 보기
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
