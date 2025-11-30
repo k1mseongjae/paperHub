@@ -105,15 +105,12 @@ const ClusteringPage: React.FC = () => {
     if (fgRef.current) {
       // link force distance 설정
       fgRef.current.d3Force('link')?.distance((link: any) => {
-        // value(weight)가 높을수록(유사할수록) 거리를 짧게
-        // 기본값 30, weight가 0~1 사이라면...
-        // weight가 1에 가까우면 30, 0에 가까우면 150 정도?
+        // weight(유사도) 높을수록 거리 짧게
         const val = link.value ?? 0.5;
-        // val이 클수록 분모가 커져서 거리가 줄어듦.
-        // 적절한 상수를 곱해서 조정.
+        // 거리 조정
         return 100 / (val + 0.1);
       });
-      // Re-heat simulation to apply changes
+      // 시뮬레이션 재가열
       fgRef.current.d3ReheatSimulation();
     }
   }, [graph]);
@@ -132,14 +129,12 @@ const ClusteringPage: React.FC = () => {
         if (merge) {
           setGraph((prev) => {
             if (!prev) return newGraph;
-            // Merge nodes
+            // 노드 병합
             const existingNodeIds = new Set(prev.nodes.map((n) => n.arXivId));
             const uniqueNewNodes = newGraph.nodes.filter((n) => !existingNodeIds.has(n.arXivId));
             const mergedNodes = [...prev.nodes, ...uniqueNewNodes];
 
-            // Merge edges
-            // Simple check to avoid exact duplicates if necessary, though react-force-graph handles multiple links
-            // We'll just append for now, or maybe check source-target pair
+            // 엣지 병합
             const existingEdges = new Set(prev.edges.map((e) => `${e.source}-${e.target}`));
             const uniqueNewEdges = newGraph.edges.filter((e) => !existingEdges.has(`${e.source}-${e.target}`));
             const mergedEdges = [...prev.edges, ...uniqueNewEdges];
@@ -163,12 +158,9 @@ const ClusteringPage: React.FC = () => {
   const fetchLibraryGraph = async () => {
     setLoading(true);
     setError(null);
-    setCenterArxivId(null); // No single center
+    setCenterArxivId(null); // 중심 노드 없음
     try {
-      // status=done by default or let backend decide.
-      // User asked for "read papers", so we can pass status=done explicitly if we want,
-      // or just call library which defaults to all or done.
-      // Let's pass status=done to be safe as per request "내가 읽은 논문"
+      // status=done (읽은 논문)
       const resp = await axiosInstance.get('/api/graph/library?status=done');
       if (resp.data?.success) {
         setGraph(resp.data.data as GraphResp);
@@ -184,14 +176,7 @@ const ClusteringPage: React.FC = () => {
   };
 
   const fetchExplanation = async (recId: string) => {
-    // If we expanded, centerArxivId might not be the immediate parent.
-    // However, the backend API requires a "center" (source) and "target".
-    // For now, we can try to find a connected node in the existing edges?
-    // Or just skip explanation if we don't have a clear "center".
-    // Actually, if we expanded, the user clicked a node. That node effectively becomes a "center" for the new expansion.
-    // But for explanation of *why* a node is there, it depends on which edge we are looking at.
-    // The current UI assumes a single center.
-    // Let's keep it simple: if we have a centerArxivId, use it.
+    // centerArxivId가 있으면 사용
     if (!centerArxivId) return;
     if (explanations[recId]) return;
     setExplaining(recId);
@@ -229,8 +214,7 @@ const ClusteringPage: React.FC = () => {
   const graphData = useMemo(() => {
     if (!graph) return { nodes: [], links: [] };
     const nodes: GraphNode[] = graph.nodes.map((n) => {
-      // If we have multiple centers or no center (library view), logic changes.
-      // If centerArxivId is null, maybe no node is "center".
+      // centerArxivId 여부 확인
       const isCenter = centerArxivId ? n.arXivId === centerArxivId : false;
       return {
         id: n.arXivId,
@@ -308,11 +292,8 @@ const ClusteringPage: React.FC = () => {
     const node = nodeObj as GraphNode;
     setSelectedArxiv(node.arXivId);
 
-    // Expand logic:
-    // If we click a node, we want to expand it (fetch its recommendations and merge).
-    // We should only do this if it's not already expanded? 
-    // For now, just always try to fetch/merge.
-    // arXiv ID가 없으면(메타데이터 없는 논문) 확장 불가
+    // 확장 로직
+    // arXiv ID 없음(메타데이터 부재) -> 확장 불가
     if (!node.arXivId) {
       setError('이 논문은 메타데이터가 없어 확장할 수 없습니다.');
       return;

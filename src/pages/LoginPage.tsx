@@ -9,26 +9,26 @@ const LoginPage = () => {
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
-   const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const response = await axiosInstance.post('/api/auth/login', { email, password });
 
       let token = null;
 
-      // 1. 응답 본문(body)에 토큰이 있는지 먼저 확인
+      // 1. Body에서 토큰 확인
       if (response.data && response.data.token) {
         token = response.data.token;
-      } 
-      // 2. 본문에 토큰이 없으면, 응답 헤더(header)를 확인
+      }
+      // 2. Header에서 토큰 확인
       else {
         const authHeader = response.headers['authorization'];
         if (authHeader && authHeader.startsWith('Bearer ')) {
-          token = authHeader.substring(7); // 'Bearer ' 부분 제외
+          token = authHeader.substring(7); // 'Bearer ' 제외
         }
       }
 
-      console.log('Extracted Token:', token); // 토큰 추출 확인용
+      console.log('Extracted Token:', token); // 토큰 확인
 
       if (token) {
         login(token);
@@ -46,17 +46,17 @@ const LoginPage = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg">
-        
+
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-800">PaperHub</h1>
           <p className="mt-2 text-gray-500">Welcome back! Please enter your details.</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
-          
+
           <div>
-            <label 
-              htmlFor="email" 
+            <label
+              htmlFor="email"
               className="text-sm font-medium text-gray-700"
             >
               Email
@@ -75,8 +75,8 @@ const LoginPage = () => {
           </div>
 
           <div>
-            <label 
-              htmlFor="password" 
+            <label
+              htmlFor="password"
               className="text-sm font-medium text-gray-700"
             >
               Password
@@ -93,9 +93,9 @@ const LoginPage = () => {
               placeholder="••••••••"
             />
           </div>
-          
+
           <div>
-            <button 
+            <button
               type="submit"
               className="w-full px-4 py-2 font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >

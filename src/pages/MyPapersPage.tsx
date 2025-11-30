@@ -4,9 +4,9 @@ import axiosInstance from '../api/axiosInstance.ts';
 import PaperCard from '../components/PaperCard';
 import { parseJsonArraySafe } from '../utils/papers';
 
-// 리스트 응답(CollectionPaperListResp)에 맞춘 타입
+// CollectionPaperListResp 타입
 interface PaperListItem {
-  id: number;           // collection item id
+  id: number;           // 컬렉션 아이템 ID
   paperId: number;
   status?: string;
   lastOpenedAt?: string;
@@ -14,16 +14,16 @@ interface PaperListItem {
   updatedAt?: string;
   // paperInfo 필드
   title?: string;
-  authors?: string;      // JSON string: ["A B","C D"]
+  authors?: string;      // 저자 JSON
   primaryCategory?: string;
-  categories?: string;   // JSON string: ["cs.CL","cs.AI"]
+  categories?: string;   // 카테고리 JSON
   arxivId?: string;
   pdfUrl?: string;
   abstractText?: string;
   publishedDate?: string;
 }
 
-// PaperInfoDetailResp에 맞춘 타입
+// PaperInfoDetailResp 타입
 interface PaperInfoDetail {
   id: number;
   paperId: number;
@@ -320,12 +320,12 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
     return items;
   }, [papers, sortBy]);
 
-  // 로딩 중일 때 보여줄 화면
+  // 로딩 화면
   if (isLoading) {
     return <div className="p-6">Loading papers...</div>;
   }
 
-  // 에러가 발생했을 때 보여줄 화면
+  // 에러 화면
   if (error) {
     return <div className="p-6 text-red-500">{error}</div>;
   }
@@ -354,7 +354,7 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         </div>
       </div>
 
-      {/* Paper List */}
+      {/* 논문 목록 */}
       <div className={containerClass}>
         {sortedPapers.length > 0 ? (
           sortedPapers.map((paper) => (

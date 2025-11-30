@@ -278,7 +278,7 @@ const NoteViewerPage: React.FC = () => {
           const data = paperResp.data.data as PaperViewDetail;
           setPaperDetail(data);
           setNumPages(data.numPages ?? 1);
-          // 뷰어는 항상 백엔드 파일 엔드포인트를 사용해 CORS를 피합니다.
+          // CORS 회피: 백엔드 파일 엔드포인트 사용
           setPdfUrl(`/api/papers/${paperId}/file`);
         }
       } catch (e) {
@@ -311,12 +311,12 @@ const NoteViewerPage: React.FC = () => {
     };
   }, [pdfUrl, token]);
 
-  // --- Session Tracking Refs ---
+  // --- 세션 추적 Refs ---
   const mountTimeRef = useRef<number>(Date.now());
   const maxPageRef = useRef<number>(1);
   const lastPageRef = useRef<number>(1);
 
-  // Update refs when page changes
+  // 페이지 변경 시 Refs 업데이트
   useEffect(() => {
     lastPageRef.current = currentPage;
     if (currentPage > maxPageRef.current) {
@@ -324,9 +324,9 @@ const NoteViewerPage: React.FC = () => {
     }
   }, [currentPage]);
 
-  // Send session data on unmount
+  // 언마운트 시 세션 데이터 전송
   useEffect(() => {
-    // Reset mount time when paperId changes (new session)
+    // paperId 변경 시 마운트 시간 초기화
     mountTimeRef.current = Date.now();
     maxPageRef.current = 1;
     lastPageRef.current = 1;
@@ -346,7 +346,7 @@ const NoteViewerPage: React.FC = () => {
       const payload = JSON.stringify(data);
 
       if (token) {
-        // Use fetch with keepalive so we can include the auth header
+        // keepalive fetch 사용 (Auth 헤더 포함)
         fetch(url, {
           method: 'POST',
           headers: {
@@ -357,7 +357,7 @@ const NoteViewerPage: React.FC = () => {
           keepalive: true,
         }).catch((err) => console.warn('Failed to send session data', err));
       } else {
-        // Fallback for unauthenticated state
+        // 비인증 상태 Fallback
         const blob = new Blob([payload], { type: 'application/json' });
         const success = navigator.sendBeacon(url, blob);
         if (!success) {
@@ -552,6 +552,7 @@ const NoteViewerPage: React.FC = () => {
         const resp = await axiosInstance.patch(`/api/collection-items/${slug}/${collectionId}`, {});
         if (resp.data?.success) {
           const data = resp.data.data as StatusChangeResp;
+          // 비인증 상태 Fallback
           setCollectionStatus(data.status);
           setCollectionItem((prev) => (prev ? { ...prev, status: data.status } : prev));
           window.dispatchEvent(new Event('collection:refresh'));
