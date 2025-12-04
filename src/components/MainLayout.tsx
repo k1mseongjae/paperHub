@@ -61,8 +61,23 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const handleRefresh = () => {
       fetchCollectionCounts();
     };
+
+    const handleUpdateCount = (event: CustomEvent<{ status: string; count: number }>) => {
+      const { status, count } = event.detail;
+      setCollectionCounts((prev) => {
+        const key = status === 'to-read' ? 'toRead' : status === 'in-progress' ? 'inProgress' : 'done';
+        if (prev[key] === count) return prev;
+        return { ...prev, [key]: count };
+      });
+    };
+
     window.addEventListener('collection:refresh', handleRefresh);
-    return () => window.removeEventListener('collection:refresh', handleRefresh);
+    window.addEventListener('collection:update_count', handleUpdateCount as EventListener);
+
+    return () => {
+      window.removeEventListener('collection:refresh', handleRefresh);
+      window.removeEventListener('collection:update_count', handleUpdateCount as EventListener);
+    };
   }, [fetchCollectionCounts]);
 
   const fetchRootCategories = async () => {

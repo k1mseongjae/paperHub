@@ -186,7 +186,14 @@ const MyPapersPage = ({ variant = 'grid' }: MyPapersPageProps) => {
         if (response.data.success) {
           console.debug('MyPapers list response', response.data.data);
           const normalized = (response.data.data.content ?? []).map(normalizePaper);
-          setPapers(dedupePapers(normalized));
+          const deduped = dedupePapers(normalized);
+          setPapers(deduped);
+
+          // 사이드바 카운트 업데이트 이벤트 발송
+          const event = new CustomEvent('collection:update_count', {
+            detail: { status: statusParam, count: deduped.length }
+          });
+          window.dispatchEvent(event);
         } else {
           setError(response.data.error?.message || '논문 목록을 불러오는 데 실패했습니다.');
         }
