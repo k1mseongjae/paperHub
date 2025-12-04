@@ -20,6 +20,7 @@ type EdgeResp = {
   target: string;
   weight?: number | null;
   rank?: number | null;
+  keywords?: string[];
 };
 
 type GraphResp = {
@@ -52,6 +53,7 @@ type GraphLink = LinkObject & {
   source: string;
   target: string;
   value?: number;
+  keywords?: string[];
 };
 
 const palette = ['#8b5cf6', '#22d3ee', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9'];
@@ -235,6 +237,7 @@ const ClusteringPage: React.FC = () => {
       source: e.source,
       target: e.target,
       value: e.weight ?? 1.2,
+      keywords: e.keywords,
     }));
     return { nodes, links };
   }, [graph, centerArxivId]);
@@ -356,6 +359,13 @@ const ClusteringPage: React.FC = () => {
             backgroundColor="rgba(15,23,42,1)"
             linkColor={() => 'rgba(148,163,184,0.55)'}
             linkWidth={(l) => Math.max(1.4, Math.min(4, (l as GraphLink).value ?? 1.4))}
+            linkLabel={(l) => {
+              const link = l as GraphLink;
+              if (link.keywords && link.keywords.length > 0) {
+                return `Keywords: ${link.keywords.join(', ')}`;
+              }
+              return '';
+            }}
             nodeRelSize={6}
             cooldownTicks={80}
             onNodeClick={handleNodeClick}
