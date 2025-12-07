@@ -39,11 +39,9 @@ interface UserPaperStatsResp {
   // 메타
   createdAt?: string;
   updatedAt?: string;
-}
-
-interface PaperInfo {
-  title: string;
-  status: 'TO_READ' | 'IN_PROGRESS' | 'DONE';
+  // [NEW] Backend Optimization: Title & Status included
+  title?: string;
+  status?: 'TO_READ' | 'IN_PROGRESS' | 'DONE';
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -56,46 +54,17 @@ const STATUS_COLORS = {
 const DashboardPage = () => {
   const [viewMode, setViewMode] = useState<'dashboard' | 'graph'>('dashboard');
   const [stats, setStats] = useState<UserPaperStatsResp[]>([]);
-  const [paperInfoMap, setPaperInfoMap] = useState<Record<number, PaperInfo>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch Stats
+        // 1. Fetch Stats (Now includes title & status)
         const statsResp = await axiosInstance.get('/api/userStats');
         if (statsResp.data.success) {
           setStats(statsResp.data.data);
         }
-
-        // 2. Fetch Papers to map IDs to Titles and Status
-        const statuses = ['to-read', 'in-progress', 'done'];
-        const infoMap: Record<number, PaperInfo> = {};
-
-        await Promise.all(statuses.map(async (status) => {
-          try {
-            const resp = await axiosInstance.get(`/api/collections/${status}?size=100`);
-            if (resp.data.success) {
-              resp.data.data.content.forEach((item: any) => {
-                const pId = item.paperId || item.paper?.id;
-                const title = item.title || item.paper?.paperInfo?.title || item.paper?.title;
-                // Map status string to enum-like key
-                let statusKey: 'TO_READ' | 'IN_PROGRESS' | 'DONE' = 'TO_READ';
-                if (status === 'in-progress') statusKey = 'IN_PROGRESS';
-                if (status === 'done') statusKey = 'DONE';
-
-                if (pId && title) {
-                  infoMap[pId] = { title, status: statusKey };
-                }
-              });
-            }
-          } catch (e) {
-            console.error(`Failed to fetch ${status} papers`, e);
-          }
-        }));
-        setPaperInfoMap(infoMap);
-
       } catch (e) {
         console.error('Failed to fetch dashboard data', e);
       } finally {
@@ -132,15 +101,14 @@ const DashboardPage = () => {
       if (s.lastOpenedAt) {
         const date = s.lastOpenedAt.split('T')[0];
         if (data[date]) {
-          const info = paperInfoMap[s.paperId];
-          const status = info ? info.status : 'TO_READ'; // 정보 없으면 TO_READ 기본값
+          const status = s.status || 'TO_READ'; // 정보 없으면 TO_READ 기본값
           data[date][status]++;
         }
       }
     });
 
     return Object.values(data);
-  }, [stats, paperInfoMap]);
+  }, [stats]);
 
   // 3. Top Papers (읽은 시간 순)
   const topPapersData = useMemo(() => {
@@ -148,10 +116,10 @@ const DashboardPage = () => {
       .sort((a, b) => b.totalReadTimeSec - a.totalReadTimeSec)
       .slice(0, 5)
       .map(s => ({
-        name: paperInfoMap[s.paperId]?.title || `Paper ${s.paperId}`,
+        name: s.title || `Paper ${s.paperId}`,
         time: Math.round(s.totalReadTimeSec / 60) // 분 단위
       }));
-  }, [stats, paperInfoMap]);
+  }, [stats]);
 
   // 4. 완료 상태
   const completionData = useMemo(() => {
