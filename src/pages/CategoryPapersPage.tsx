@@ -141,6 +141,7 @@ const CategoryPapersPage: React.FC = () => {
         formData.append('file', uploadFile);
         const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 120000, // 2 minutes timeout
         });
         const newPaperId = uploadResp?.data?.data?.paperId;
         if (!newPaperId) {

@@ -95,7 +95,9 @@ const SearchPage = () => {
       const formData = new FormData();
       formData.append('file', pdfFile);
 
-      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData);
+      const uploadResp = await axiosInstance.post('/api/papers/register-from-url', formData, {
+        timeout: 120000, // 2 minutes timeout for large files
+      });
 
       const paperId = uploadResp?.data?.data?.paperId;
       if (!paperId) {
