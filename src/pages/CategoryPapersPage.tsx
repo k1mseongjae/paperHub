@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import PaperCard from '../components/PaperCard';
 import { parseJsonArraySafe } from '../utils/papers';
+import { getCategoryName } from '../utils/categories';
 
 interface CategoryPaper {
   id: number;
@@ -192,7 +193,7 @@ const CategoryPapersPage: React.FC = () => {
     [handleImport, importing, navigate]
   );
 
-  const categoryLabel = useMemo(() => code?.replace('.', ' · ') ?? '카테고리', [code]);
+  const categoryLabel = useMemo(() => getCategoryName(code) || '카테고리', [code]);
 
   const handlePageChange = (delta: number) => {
     const nextPage = Math.max(0, page + delta);

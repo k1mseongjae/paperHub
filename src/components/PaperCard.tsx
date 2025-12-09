@@ -1,6 +1,7 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { formatAuthorsShort, getPublishedYear } from '../utils/papers';
+import { getCategoryName } from '../utils/categories';
 
 export type PaperCardVariant = 'grid' | 'list';
 
@@ -123,7 +124,7 @@ const PaperCard = ({
               key={tag}
               className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold px-2.5 py-0.5 rounded-full"
             >
-              {tag}
+              {getCategoryName(tag)}
             </span>
           ))}
         </div>

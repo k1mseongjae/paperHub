@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import type { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
 import axiosInstance from '../api/axiosInstance.ts';
+import { getCategoryName } from '../utils/categories';
 
 type NodeResp = {
   id: number | null;
@@ -436,7 +437,7 @@ const ClusteringPage: React.FC = () => {
               )}
               {selectedNode.primaryCategory && (
                 <span className="mt-2 inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                  {selectedNode.primaryCategory}
+                  {getCategoryName(selectedNode.primaryCategory)}
                 </span>
               )}
               {selectedNode.publishedDate && (
