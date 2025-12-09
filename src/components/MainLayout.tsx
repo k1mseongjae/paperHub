@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import { useAuthStore } from '../state/authStore';
 import GlobalSearchBar from './GlobalSearchBar';
+import { getCategoryName } from '../utils/categories';
 interface CollectionCounts {
   toRead: number;
   inProgress: number;
@@ -90,13 +91,17 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         const rows = Array.isArray(resp.data.data?.content) ? resp.data.data.content : [];
         if (rows.length > 0) {
           setCategories(
-            rows.map((row: any) => ({
-              code: row.code,
-              name: row.name ?? row.code,
-              paperCount: row.paperCount ?? 0,
-              isExpanded: false,
-              isLoading: false,
-            }))
+            rows.map((row: any) => {
+              const korean = getCategoryName(row.code);
+              const isMapped = korean !== row.code;
+              return {
+                code: row.code,
+                name: isMapped ? korean : (row.name ?? row.code),
+                paperCount: row.paperCount ?? 0,
+                isExpanded: false,
+                isLoading: false,
+              };
+            })
           );
           return;
         }
@@ -143,11 +148,15 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         const rows = Array.isArray(resp.data.data?.content) ? resp.data.data.content : resp.data.data ?? [];
         if (rows.length > 0) {
           return rows.map(
-            (row: any): CategoryNode => ({
-              code: row.code,
-              name: row.name ?? row.code,
-              paperCount: row.paperCount ?? 0,
-            })
+            (row: any): CategoryNode => {
+              const korean = getCategoryName(row.code);
+              const isMapped = korean !== row.code;
+              return {
+                code: row.code,
+                name: isMapped ? korean : (row.name ?? row.code),
+                paperCount: row.paperCount ?? 0,
+              };
+            }
           );
         }
       }
