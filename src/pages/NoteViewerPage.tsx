@@ -530,11 +530,26 @@ const NoteViewerPage: React.FC = () => {
 
   const handleEditMemo = useCallback(async (id: number, newBody: string) => {
     try {
+      // Optimistic update: 서버 응답 기다리지 않고 즉시 UI 갱신
+      setAnnotations((prev) => {
+        if (!prev) return prev;
+        const nextItems = prev.items.map((item) => {
+          const noteIndex = item.notes.findIndex((n) => n.id === id);
+          if (noteIndex === -1) return item;
+
+          const newNotes = [...item.notes];
+          newNotes[noteIndex] = { ...newNotes[noteIndex], body: newBody };
+          return { ...item, notes: newNotes };
+        });
+        return { ...prev, items: nextItems };
+      });
+
       await axiosInstance.patch(`/api/memos/${id}`, { body: newBody });
-      await fetchAnnotations(currentPage);
+      // 성공 시 재조회 하지 않음 (Race Condition 방지)
     } catch (e) {
       console.error(e);
       alert('메모 수정 실패');
+      fetchAnnotations(currentPage); // 실패 시에만 원복을 위해 재조회
     }
   }, [currentPage, fetchAnnotations]);
 
