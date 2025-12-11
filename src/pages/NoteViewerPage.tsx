@@ -138,6 +138,10 @@ const MemoItem: React.FC<{
   const [isEditing, setIsEditing] = useState(false);
   const [editBody, setEditBody] = useState(memo.body);
 
+  useEffect(() => {
+    setEditBody(memo.body);
+  }, [memo.body]);
+
   const handleSave = async () => {
     if (editBody.trim() === '') return;
     await onEdit(memo.id, editBody);
@@ -174,8 +178,7 @@ const MemoItem: React.FC<{
   return (
     <div className="group relative rounded-md bg-white p-3 text-sm text-gray-700 shadow hover:bg-gray-50">
       <div className="whitespace-pre-wrap leading-relaxed">{memo.body}</div>
-      <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
-        <span>작성자: {memo.createdBy ?? '나'}</span>
+      <div className="mt-2 flex items-center justify-end text-xs text-gray-400">
         <div className="hidden gap-2 group-hover:flex">
           <button
             onClick={() => {
@@ -222,6 +225,7 @@ const NoteViewerPage: React.FC = () => {
   const [collectionStatus, setCollectionStatus] = useState<ReadingStatus | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
@@ -253,10 +257,12 @@ const NoteViewerPage: React.FC = () => {
     const fetchInitial = async () => {
       if (!paperId) {
         setError('유효하지 않은 논문 ID 입니다.');
+        setInitialLoading(false);
         return;
       }
 
       try {
+        setInitialLoading(true);
         setError(null);
         setStatusMenuOpen(false);
         setCollectionStatus(null);
@@ -284,6 +290,8 @@ const NoteViewerPage: React.FC = () => {
       } catch (e) {
         console.error(e);
         setError('논문 정보를 불러오지 못했습니다.');
+      } finally {
+        setInitialLoading(false);
       }
     };
 
@@ -688,6 +696,14 @@ const NoteViewerPage: React.FC = () => {
     </aside>
   );
 
+  if (initialLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-gray-500">불러오는 중...</p>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="p-8">
@@ -746,7 +762,7 @@ const NoteViewerPage: React.FC = () => {
         <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
           <div className="mx-auto max-w-4xl">
             <div className="relative w-fit" ref={pageContainerRef}>
-              <Document file={documentFile} onLoadSuccess={(info) => setNumPages(info.numPages)} loading={<p className="p-4 text-gray-500">PDF 불러오는 중...</p>}>
+              <Document file={documentFile} onLoadSuccess={(info) => setNumPages(info.numPages)} loading={<p className="p-4 text-gray-500">불러오는 중...</p>}>
                 <Page
                   pageNumber={currentPage}
                   width={880}
